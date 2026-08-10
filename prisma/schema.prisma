@@ -1,0 +1,200 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  GESTOR
+  COLABORADOR
+}
+
+enum Direction {
+  MORE
+  LESS
+  EQUAL
+}
+
+enum ActionPlanStatus {
+  ABERTO
+  CONCLUIDO
+}
+
+enum KpiCalculationType {
+  MANUAL
+  SUM
+  AVERAGE
+  WEIGHTED
+}
+
+/// Snapshot of the traffic light at the moment the measurement was recorded.
+/// The authoritative calculation lives in src/lib/kpi.ts (getKpiStatus).
+enum TrafficLight {
+  VERDE
+  AMARELO
+  VERMELHO
+  CRITICO
+  SEM_DADO
+}
+
+model Department {
+  id               String            @id @default(cuid())
+  name             String            @unique
+  users            User[]
+  kpis             Kpi[]
+  periodLocks      PeriodLock[]
+  periodLockEvents PeriodLockEvent[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+/// A closed accounting cycle. The existence of a row *is* the lock.
+/// `departmentId = null` means the lock is global; a row with a department
+/// narrows it to that area (schema is ready for it, v1 only writes global rows).
+///
+/// NOTE: the migration adds a partial unique index by hand —
+/// `CREATE UNIQUE INDEX "PeriodLock_period_global_key" ON "PeriodLock"("period") WHERE "departmentId" IS NULL;`
+/// Postgres treats NULLs as distinct, so @@unique([period, departmentId]) alone
+/// would allow two global locks for the same period. Do not drop it on a regen.
+model PeriodLock {
+  id           String      @id @default(cuid())
+  period       String
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  closedById   String
+  closedBy     User        @relation("PeriodClosedBy", fields: [closedById], references: [id])
+  note         String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([period, departmentId])
+  @@index([period])
+  @@index([departmentId])
+  @@index([closedById])
+}
+
+/// Append-only audit of every close and reopen. Reopening a closed month is a
+/// governance event: without this row nobody can answer "who reopened março,
+/// and why".
+model PeriodLockEvent {
+  id           String      @id @default(cuid())
+  period       String
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  closed       Boolean
+  actorId      String
+  actor        User        @relation("PeriodLockActor", fields: [actorId], references: [id])
+  note         String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([period])
+  @@index([departmentId])
+  @@index([actorId])
+}
+
+model User {
+  id           String       @id @default(cuid())
+  username     String       @unique
+  passwordHash String
+  name         String
+  role         Role         @default(COLABORADOR)
+  active       Boolean      @default(true)
+  managerId    String?
+  manager      User?        @relation("Hierarchy", fields: [managerId], references: [id])
+  reports      User[]       @relation("Hierarchy")
+  departmentId String?
+  department   Department?  @relation(fields: [departmentId], references: [id])
+  kpis             Kpi[]
+  actionPlans      ActionPlan[]      @relation("CreatedBy")
+  measurements     Measurement[]     @relation("ReportedBy")
+  periodLocks      PeriodLock[]      @relation("PeriodClosedBy")
+  periodLockEvents PeriodLockEvent[] @relation("PeriodLockActor")
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([managerId])
+  @@index([departmentId])
+}
+
+model Kpi {
+  id           String        @id @default(cuid())
+  name         String
+  description  String?
+  ownerId      String
+  owner        User          @relation(fields: [ownerId], references: [id])
+  departmentId String?
+  department   Department?   @relation(fields: [departmentId], references: [id])
+  parentId     String?
+  parent       Kpi?          @relation("KpiTree", fields: [parentId], references: [id])
+  children     Kpi[]         @relation("KpiTree")
+  metricUnit   String
+  direction    Direction     @default(MORE)
+  calculationType KpiCalculationType @default(MANUAL)
+  weight       Int           @default(0)
+  yellowRange  Float         @default(5)
+  redRange     Float         @default(15)
+  priority     Int           @default(0)
+  archivedAt   DateTime?
+  measurements Measurement[]
+  actionPlans  ActionPlan[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([ownerId])
+  @@index([departmentId])
+  @@index([parentId])
+}
+
+model Measurement {
+  id           String       @id @default(cuid())
+  kpiId        String
+  kpi          Kpi          @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  period       String
+  goal         Float
+  actual       Float?
+  trafficLight TrafficLight @default(SEM_DADO)
+  reportedById String?
+  reportedBy   User?        @relation("ReportedBy", fields: [reportedById], references: [id])
+  actionPlans  ActionPlan[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@unique([kpiId, period])
+  @@index([period])
+}
+
+model ActionPlan {
+  id            String           @id @default(cuid())
+  kpiId         String
+  kpi           Kpi              @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  measurementId String
+  measurement   Measurement      @relation(fields: [measurementId], references: [id], onDelete: Cascade)
+  fact          String
+  why1          String?
+  why2          String?
+  why3          String?
+  why4          String?
+  why5          String?
+  rootCause     String?
+  what          String?
+  who           String?
+  where         String?
+  when          DateTime?
+  why           String?
+  how           String?
+  howMuch       Float?
+  status        ActionPlanStatus @default(ABERTO)
+  createdById   String
+  createdBy     User             @relation("CreatedBy", fields: [createdById], references: [id])
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@unique([measurementId])
+  @@index([kpiId])
+  @@index([createdById])
+}
