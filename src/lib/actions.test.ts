@@ -8,8 +8,12 @@ import { getKpiStatus } from "@/lib/kpi";
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     measurement: { upsert: vi.fn() },
-    actionPlan: { findUnique: vi.fn(), create: vi.fn() },
+    actionPlan: { upsert: vi.fn() },
   },
+}));
+
+vi.mock("@/lib/kpi-cascading", () => ({
+  recalculateParentMeasurement: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
@@ -23,9 +27,11 @@ vi.mock("@/lib/kpi", () => ({
 const authMock = vi.mocked(auth);
 const assertKpiEditableMock = vi.mocked(assertKpiEditable);
 const getKpiStatusMock = vi.mocked(getKpiStatus);
+import { recalculateParentMeasurement } from "@/lib/kpi-cascading";
+
 const measurementUpsert = vi.mocked(prisma.measurement.upsert);
-const actionPlanFindUnique = vi.mocked(prisma.actionPlan.findUnique);
-const actionPlanCreate = vi.mocked(prisma.actionPlan.create);
+const actionPlanUpsert = vi.mocked(prisma.actionPlan.upsert);
+const recalculateParentMock = vi.mocked(recalculateParentMeasurement);
 
 /** Prisma/NextAuth return wide types; tests only supply the fields under test. */
 const stub = <T,>(value: T) => value as never;
@@ -51,12 +57,13 @@ describe("upsertMeasurement", () => {
       "opens an action plan when the status is %s",
       async (status) => {
         getKpiStatusMock.mockReturnValue(status);
-        actionPlanFindUnique.mockResolvedValue(null);
 
         await upsertMeasurement(form({ kpiId: "kpi-1", goal: "100", actual: "50" }));
 
-        expect(actionPlanCreate).toHaveBeenCalledWith({
-          data: expect.objectContaining({
+        expect(actionPlanUpsert).toHaveBeenCalledWith({
+          where: { measurementId: "meas-1" },
+          update: {},
+          create: expect.objectContaining({
             kpiId: "kpi-1",
             measurementId: "meas-1",
             status: "ABERTO",
@@ -68,22 +75,13 @@ describe("upsertMeasurement", () => {
     it("does not open an action plan when the status is VERDE", async () => {
       getKpiStatusMock.mockReturnValue("VERDE");
       await upsertMeasurement(form({ kpiId: "kpi-1", goal: "100", actual: "120" }));
-      expect(actionPlanCreate).not.toHaveBeenCalled();
+      expect(actionPlanUpsert).not.toHaveBeenCalled();
     });
 
     it("does not open an action plan when there is no measurement (SEM_DADO)", async () => {
       getKpiStatusMock.mockReturnValue("SEM_DADO");
       await upsertMeasurement(form({ kpiId: "kpi-1", goal: "100", actual: "" }));
-      expect(actionPlanCreate).not.toHaveBeenCalled();
-    });
-
-    it("does not open a second plan when one already exists", async () => {
-      getKpiStatusMock.mockReturnValue("VERMELHO");
-      actionPlanFindUnique.mockResolvedValue(stub({ id: "plan-1" }));
-
-      await upsertMeasurement(form({ kpiId: "kpi-1", goal: "100", actual: "50" }));
-
-      expect(actionPlanCreate).not.toHaveBeenCalled();
+      expect(actionPlanUpsert).not.toHaveBeenCalled();
     });
   });
 
@@ -101,7 +99,6 @@ describe("upsertMeasurement", () => {
 
     it("persists the computed status and the reporter on both upsert branches", async () => {
       getKpiStatusMock.mockReturnValue("CRITICO");
-      actionPlanFindUnique.mockResolvedValue(null);
 
       await upsertMeasurement(form({ kpiId: "kpi-1", goal: "100", actual: "10" }));
 
@@ -145,6 +142,19 @@ describe("upsertMeasurement", () => {
 
       expect(measurementUpsert).not.toHaveBeenCalled();
     });
+
+  describe("cascading", () => {
+    it("triggers recalculation when kpi has a parentId", async () => {
+      assertKpiEditableMock.mockResolvedValue(
+        stub({ direction: "MORE", yellowRange: 10, redRange: 20, parentId: "parent-1" })
+      );
+      getKpiStatusMock.mockReturnValue("VERDE");
+      
+      await upsertMeasurement(form({ kpiId: "kpi-1", goal: "100", actual: "100" }));
+      
+      expect(recalculateParentMock).toHaveBeenCalledWith("parent-1", "2026-08");
+    });
+  });
 
     it("rejects a non-numeric goal", async () => {
       await expect(
