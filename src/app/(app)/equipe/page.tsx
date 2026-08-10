@@ -1,10 +1,11 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { ArrowRight, Users } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getKpiStatus, currentPeriod, periodLabel, STATUS_BADGE_CLASS, STATUS_LABEL } from "@/lib/kpi";
+import { getKpiStatus, currentPeriod, periodLabel, STATUS_LABEL } from "@/lib/kpi";
 import { EmptyState } from "@/components/EmptyState";
+import { Bolinha } from "@/components/Bolinha";
 
 export default async function EquipePage() {
   const session = await auth();
@@ -78,14 +79,14 @@ export default async function EquipePage() {
                       return (
                         // Name + label, so a row of chips says which indicator is
                         // off, not just how many colors are showing.
-                        <span
+                        <div
                           key={kpi.id}
                           title={`${kpi.name}: ${STATUS_LABEL[status]}`}
-                          className={`${STATUS_BADGE_CLASS[status]} max-w-[190px]`}
+                          className="flex items-center gap-1.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1 text-[11.5px]"
                         >
-                          <span className="min-w-0 truncate">{kpi.name}</span>
-                          <span className="opacity-70">· {STATUS_LABEL[status]}</span>
-                        </span>
+                          <Bolinha status={status} showLabel={false} />
+                          <span className="min-w-0 truncate font-medium text-[var(--color-ink-900)]">{kpi.name}</span>
+                        </div>
                       );
                     })}
                     {user.kpis.length === 0 && (

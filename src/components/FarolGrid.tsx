@@ -36,7 +36,7 @@ export function FarolGrid({ rows, year }: { rows: FarolRow[]; year: number }) {
           {rows.map((row) => {
             const counts = summarizeRow(row);
             const measured = 12 - counts.SEM_DADO;
-            const onTarget = counts.VERDE;
+            const onTarget = counts.AZUL + counts.VERDE;
 
             return (
               <tr key={row.kpiId}>

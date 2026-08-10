@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, CalendarClock, Pencil } from "lucide-react";
 import { auth } from "@/lib/auth";
@@ -7,6 +7,7 @@ import { getKpiStatus, periodLabel, STATUS_BADGE_CLASS, STATUS_LABEL, STATUS_RAI
 import { canView } from "@/lib/hierarchy";
 import { DashboardCharts, type ChartPoint } from "@/components/DashboardCharts";
 import { EmptyState } from "@/components/EmptyState";
+import { Bolinha } from "@/components/Bolinha";
 
 const DIRECTION_LABEL: Record<string, string> = {
   MORE: "Maior",
@@ -139,7 +140,7 @@ export default async function KpiDetailPage({
                       {m.actual !== null ? `${m.actual} ${kpi.metricUnit}` : "—"}
                     </td>
                     <td className="text-right">
-                      <span className={STATUS_BADGE_CLASS[status]}>{STATUS_LABEL[status]}</span>
+                      <Bolinha status={status} className="justify-end" />
                     </td>
                   </tr>
                 );

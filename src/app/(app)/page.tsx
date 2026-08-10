@@ -24,6 +24,7 @@ import { canView } from "@/lib/hierarchy";
 import { DashboardCharts, type ChartPoint } from "@/components/DashboardCharts";
 import { StatusMeter } from "@/components/StatusMeter";
 import { EmptyState } from "@/components/EmptyState";
+import { Bolinha } from "@/components/Bolinha";
 
 export default async function Home({
   searchParams,
@@ -61,6 +62,7 @@ export default async function Home({
     orderBy: { priority: "asc" },
   });
 
+  let blue = 0;
   let green = 0;
   let yellow = 0;
   let red = 0;
@@ -80,7 +82,8 @@ export default async function Home({
       ? getKpiStatus(current.goal, current.actual, kpi.direction, kpi.yellowRange, kpi.redRange)
       : "SEM_DADO";
 
-    if (status === "VERDE") green++;
+    if (status === "AZUL") blue++;
+    else if (status === "VERDE") green++;
     else if (status === "AMARELO") yellow++;
     else if (status === "VERMELHO") red++;
     else if (status === "CRITICO") critical++;
@@ -96,10 +99,10 @@ export default async function Home({
     }
   }
 
-  const totalComMedicao = green + yellow + red + critical;
-  const metasAtingidasPct = totalComMedicao > 0 ? Math.round((green / totalComMedicao) * 100) : 0;
+  const totalComMedicao = blue + green + yellow + red + critical;
+  const metasAtingidasPct = totalComMedicao > 0 ? Math.round(((blue + green) / totalComMedicao) * 100) : 0;
   const score = totalComMedicao > 0
-    ? ((green * 10 + yellow * 5) / totalComMedicao).toFixed(1)
+    ? (((blue + green) * 10 + yellow * 5) / totalComMedicao).toFixed(1)
     : "0.0";
 
   const [planosConcluidos, fcaPendentes] = await Promise.all([
@@ -128,6 +131,7 @@ export default async function Home({
 
   // Presentation-only derivations from the data already fetched above.
   const statusCounts: Record<KpiStatus, number> = {
+    AZUL: blue,
     VERDE: green,
     AMARELO: yellow,
     VERMELHO: red,
@@ -194,7 +198,7 @@ export default async function Home({
               </div>
               <p className="mt-1 text-[11.5px] text-[var(--color-ink-500)]">
                 <span className="font-mono-num font-semibold text-[var(--color-ink-700)]">
-                  {green}
+                  {blue + green}
                 </span>{" "}
                 de{" "}
                 <span className="font-mono-num font-semibold text-[var(--color-ink-700)]">
@@ -306,9 +310,7 @@ export default async function Home({
                       <div className="truncate text-[13px] font-medium text-[var(--color-ink-900)]">
                         {item.name}
                       </div>
-                      <span className={`${STATUS_BADGE_CLASS[item.status]} mt-1`}>
-                        {STATUS_LABEL[item.status]}
-                      </span>
+                      <Bolinha status={item.status} className="mt-1" />
                     </div>
                     <div className="flex shrink-0 items-center gap-2 text-right">
                       <div>

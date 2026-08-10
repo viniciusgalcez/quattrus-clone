@@ -1,8 +1,9 @@
 import { STATUS_LABEL, type KpiStatus } from "@/lib/kpi";
 
-const ORDER: KpiStatus[] = ["VERDE", "AMARELO", "VERMELHO", "CRITICO", "SEM_DADO"];
+const ORDER: KpiStatus[] = ["AZUL", "VERDE", "AMARELO", "VERMELHO", "CRITICO", "SEM_DADO"];
 
 const SEGMENT_CLASS: Record<KpiStatus, string> = {
+  AZUL: "meter-seg meter-seg-azul",
   VERDE: "meter-seg meter-seg-verde",
   AMARELO: "meter-seg meter-seg-amarelo",
   VERMELHO: "meter-seg meter-seg-vermelho",
@@ -11,6 +12,7 @@ const SEGMENT_CLASS: Record<KpiStatus, string> = {
 };
 
 const DOT_CLASS: Record<KpiStatus, string> = {
+  AZUL: "bg-[var(--color-blue-600)]",
   VERDE: "bg-[var(--color-green-600)]",
   AMARELO: "bg-[var(--color-amber-600)]",
   VERMELHO: "bg-[var(--color-red-600)]",

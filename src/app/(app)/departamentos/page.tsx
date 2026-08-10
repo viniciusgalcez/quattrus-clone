@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
 import { Building2 } from "lucide-react";
 import { auth } from "@/lib/auth";
@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { currentPeriod, getKpiStatus, periodLabel, STATUS_BADGE_CLASS, STATUS_LABEL, type KpiStatus } from "@/lib/kpi";
 import { getSubordinateIds } from "@/lib/hierarchy";
 import { EmptyState } from "@/components/EmptyState";
+import { Bolinha } from "@/components/Bolinha";
 
 export default async function DepartamentosPage() {
   const session = await auth();
@@ -120,12 +121,13 @@ export default async function DepartamentosPage() {
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-1.5">
-                  {(["VERDE", "AMARELO", "VERMELHO", "CRITICO", "SEM_DADO"] as KpiStatus[])
+                  {(["AZUL", "VERDE", "AMARELO", "VERMELHO", "CRITICO", "SEM_DADO"] as KpiStatus[])
                     .filter((s) => counts[s])
                     .map((s) => (
-                      <span key={s} className={STATUS_BADGE_CLASS[s]}>
+                      <div key={s} className="flex items-center gap-1.5 rounded-full border border-[var(--color-border)] px-2 py-1 text-[11px] font-medium text-[var(--color-ink-700)]">
+                        <Bolinha status={s} showLabel={false} />
                         {counts[s]} {STATUS_LABEL[s]}
-                      </span>
+                      </div>
                     ))}
                 </div>
               )}

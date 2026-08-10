@@ -14,6 +14,7 @@ import {
 import { upsertMeasurement } from "@/lib/actions";
 import { SubmitButton } from "@/components/SubmitButton";
 import { EmptyState } from "@/components/EmptyState";
+import { Bolinha } from "@/components/Bolinha";
 
 export default async function MetasPage() {
   const session = await auth();
@@ -43,6 +44,7 @@ export default async function MetasPage() {
 
   const total = kpis.length;
   const countByStatus = {
+    AZUL: 0,
     VERDE: 0,
     AMARELO: 0,
     VERMELHO: 0,
@@ -116,6 +118,7 @@ export default async function MetasPage() {
             </span>
           </div>
           <div className="meter">
+            {countByStatus.AZUL > 0 && <div className="meter-seg meter-seg-azul" style={{ width: `${(countByStatus.AZUL / total) * 100}%` }} title={`Azul: ${countByStatus.AZUL}`} />}
             {countByStatus.VERDE > 0 && <div className="meter-seg meter-seg-verde" style={{ width: `${(countByStatus.VERDE / total) * 100}%` }} title={`Verde: ${countByStatus.VERDE}`} />}
             {countByStatus.AMARELO > 0 && <div className="meter-seg meter-seg-amarelo" style={{ width: `${(countByStatus.AMARELO / total) * 100}%` }} title={`Amarelo: ${countByStatus.AMARELO}`} />}
             {countByStatus.VERMELHO > 0 && <div className="meter-seg meter-seg-vermelho" style={{ width: `${(countByStatus.VERMELHO / total) * 100}%` }} title={`Vermelho: ${countByStatus.VERMELHO}`} />}
@@ -229,7 +232,7 @@ export default async function MetasPage() {
                     </td>
 
                     <td>
-                      <span className={STATUS_BADGE_CLASS[status]}>{STATUS_LABEL[status]}</span>
+                      <Bolinha status={status} />
                     </td>
 
                     <td>

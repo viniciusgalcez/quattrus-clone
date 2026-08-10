@@ -1,6 +1,6 @@
-﻿import type { Direction } from "@prisma/client";
+import type { Direction } from "@prisma/client";
 
-export type KpiStatus = "VERDE" | "AMARELO" | "VERMELHO" | "CRITICO" | "SEM_DADO";
+export type KpiStatus = "AZUL" | "VERDE" | "AMARELO" | "VERMELHO" | "CRITICO" | "SEM_DADO";
 
 /**
  * Deviation is expressed so that a positive value always means "on/above goal"
@@ -45,6 +45,9 @@ export function getKpiStatus(
 ): KpiStatus {
   const deviation = getDeviationPct(goal, actual, direction);
   if (deviation === null) return "SEM_DADO";
+  
+  // Bolinha Azul: Resultado muito acima da meta (>= 20% acima).
+  if (deviation >= 20) return "AZUL";
   if (deviation >= 0) return "VERDE";
   const gap = Math.abs(deviation);
   if (gap <= yellowRange) return "AMARELO";
@@ -53,14 +56,16 @@ export function getKpiStatus(
 }
 
 export const STATUS_COLOR: Record<KpiStatus, string> = {
-  VERDE: "#157f4a",
-  AMARELO: "#b56a05",
-  VERMELHO: "#c62b2b",
-  CRITICO: "#7a1d2e",
-  SEM_DADO: "#6b6b82",
+  AZUL: "#2563eb",
+  VERDE: "#16a34a",
+  AMARELO: "#eab308",
+  VERMELHO: "#dc2626",
+  CRITICO: "#7f1d1d",
+  SEM_DADO: "#9ca3af",
 };
 
 export const STATUS_LABEL: Record<KpiStatus, string> = {
+  AZUL: "Super Meta",
   VERDE: "No alvo",
   AMARELO: "Atenção",
   VERMELHO: "Fora da meta",
@@ -68,15 +73,18 @@ export const STATUS_LABEL: Record<KpiStatus, string> = {
   SEM_DADO: "Sem dado",
 };
 
+// Now we use generic 'bolinha' classes instead of badges
 export const STATUS_BADGE_CLASS: Record<KpiStatus, string> = {
-  VERDE: "badge badge-verde",
-  AMARELO: "badge badge-amarelo",
-  VERMELHO: "badge badge-vermelho",
-  CRITICO: "badge badge-critico",
-  SEM_DADO: "badge badge-neutro",
+  AZUL: "bolinha bolinha-azul",
+  VERDE: "bolinha bolinha-verde",
+  AMARELO: "bolinha bolinha-amarelo",
+  VERMELHO: "bolinha bolinha-vermelho",
+  CRITICO: "bolinha bolinha-critico",
+  SEM_DADO: "bolinha bolinha-neutro",
 };
 
 export const STATUS_RAIL_CLASS: Record<KpiStatus, string> = {
+  AZUL: "status-rail-azul",
   VERDE: "status-rail-verde",
   AMARELO: "status-rail-amarelo",
   VERMELHO: "status-rail-vermelho",

@@ -116,6 +116,7 @@ export function buildFarolRows(kpis: FarolKpiInput[], year: number): FarolRow[] 
 /** Counts per status across a whole row — drives the "resumo do ano" column. */
 export function summarizeRow(row: FarolRow): Record<KpiStatus, number> {
   const counts: Record<KpiStatus, number> = {
+    AZUL: 0,
     VERDE: 0,
     AMARELO: 0,
     VERMELHO: 0,

@@ -34,6 +34,7 @@ enum KpiCalculationType {
 /// Snapshot of the traffic light at the moment the measurement was recorded.
 /// The authoritative calculation lives in src/lib/kpi.ts (getKpiStatus).
 enum TrafficLight {
+  AZUL
   VERDE
   AMARELO
   VERMELHO

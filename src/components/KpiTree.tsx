@@ -1,6 +1,6 @@
-﻿import Link from "next/link";
-import { STATUS_BADGE_CLASS, STATUS_LABEL } from "@/lib/kpi";
+import Link from "next/link";
 import type { KpiTreeNode } from "@/lib/kpi-tree";
+import { Bolinha } from "@/components/Bolinha";
 
 function TreeRow({ node, depth }: { node: KpiTreeNode; depth: number }) {
   return (
@@ -37,7 +37,7 @@ function TreeRow({ node, depth }: { node: KpiTreeNode; depth: number }) {
           {node.deviation !== null ? `${node.deviation.toFixed(1)}%` : "—"}
         </td>
         <td className="text-right">
-          <span className={STATUS_BADGE_CLASS[node.status]}>{STATUS_LABEL[node.status]}</span>
+          <Bolinha status={node.status} className="justify-end" />
         </td>
       </tr>
       {node.children.map((child) => (
