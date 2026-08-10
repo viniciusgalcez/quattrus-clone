@@ -54,8 +54,8 @@ export default async function MetasPage() {
   const hasForaDaMeta = countByStatus.VERMELHO > 0 || countByStatus.CRITICO > 0 || countByStatus.AMARELO > 0;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="flex flex-col gap-2 p-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="page-title">Metas e indicadores</h1>
           <p className="page-subtitle">
@@ -68,17 +68,17 @@ export default async function MetasPage() {
       </div>
 
       {total > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="card p-4 flex flex-col justify-between">
-            <div className="flex items-center gap-2 mb-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+          <div className="card p-2 flex flex-col justify-between">
+            <div className="flex items-center gap-1 mb-1">
               <Target className="h-4 w-4 text-[var(--color-ink-500)]" />
               <span className="field-label">Total de Indicadores</span>
             </div>
             <span className="stat-value stat-hero text-[var(--color-ink-900)]">{total}</span>
           </div>
           
-          <div className={`card p-4 flex flex-col justify-between ${countByStatus.VERDE > 0 ? 'tile-calm' : ''}`}>
-            <div className="flex items-center gap-2 mb-2">
+          <div className={`card p-2 flex flex-col justify-between ${countByStatus.VERDE > 0 ? 'tile-calm' : ''}`}>
+            <div className="flex items-center gap-1 mb-1">
               <TrendingUp className={`h-4 w-4 ${countByStatus.VERDE > 0 ? 'text-[var(--color-brand-600)]' : 'text-[var(--color-ink-500)]'}`} />
               <span className="field-label">Na Meta (Verde)</span>
             </div>
@@ -87,8 +87,8 @@ export default async function MetasPage() {
             </span>
           </div>
 
-          <div className={`card p-4 flex flex-col justify-between ${hasForaDaMeta ? 'tile-urgent' : ''}`}>
-            <div className="flex items-center gap-2 mb-2">
+          <div className={`card p-2 flex flex-col justify-between ${hasForaDaMeta ? 'tile-urgent' : ''}`}>
+            <div className="flex items-center gap-1 mb-1">
               <AlertTriangle className={`h-4 w-4 ${hasForaDaMeta ? 'text-[var(--color-accent-600)]' : 'text-[var(--color-ink-500)]'}`} />
               <span className="field-label">Fora da Meta</span>
             </div>
@@ -97,8 +97,8 @@ export default async function MetasPage() {
             </span>
           </div>
 
-          <div className="card p-4 flex flex-col justify-between">
-             <div className="flex items-center gap-2 mb-2">
+          <div className="card p-2 flex flex-col justify-between">
+             <div className="flex items-center gap-1 mb-1">
               <HelpCircle className="h-4 w-4 text-[var(--color-ink-500)]" />
               <span className="field-label">Sem Dado</span>
             </div>
@@ -108,8 +108,8 @@ export default async function MetasPage() {
       )}
 
       {total > 0 && (
-        <div className="card p-5">
-          <div className="mb-3 flex items-center justify-between">
+        <div className="card p-2">
+          <div className="mb-1 flex items-center justify-between">
             <span className="text-[14px] font-semibold text-[var(--color-ink-900)]">Desempenho Geral do Ciclo</span>
             <span className="text-[13px] font-medium text-[var(--color-ink-500)]">
               {Math.round((countByStatus.VERDE / total) * 100) || 0}% dos indicadores atingiram a meta

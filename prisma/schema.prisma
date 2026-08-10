@@ -98,22 +98,23 @@ model PeriodLockEvent {
 }
 
 model User {
-  id           String       @id @default(cuid())
-  username     String       @unique
-  passwordHash String
-  name         String
-  role         Role         @default(COLABORADOR)
-  active       Boolean      @default(true)
-  managerId    String?
-  manager      User?        @relation("Hierarchy", fields: [managerId], references: [id])
-  reports      User[]       @relation("Hierarchy")
-  departmentId String?
-  department   Department?  @relation(fields: [departmentId], references: [id])
+  id               String            @id @default(cuid())
+  username         String            @unique
+  passwordHash     String
+  name             String
+  role             Role              @default(COLABORADOR)
+  active           Boolean           @default(true)
+  managerId        String?
+  manager          User?             @relation("Hierarchy", fields: [managerId], references: [id])
+  reports          User[]            @relation("Hierarchy")
+  departmentId     String?
+  department       Department?       @relation(fields: [departmentId], references: [id])
   kpis             Kpi[]
   actionPlans      ActionPlan[]      @relation("CreatedBy")
   measurements     Measurement[]     @relation("ReportedBy")
   periodLocks      PeriodLock[]      @relation("PeriodClosedBy")
   periodLockEvents PeriodLockEvent[] @relation("PeriodLockActor")
+  auditLogs        AuditLog[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
@@ -122,28 +123,28 @@ model User {
 }
 
 model Kpi {
-  id           String        @id @default(cuid())
-  name         String
-  description  String?
-  ownerId      String
-  owner        User          @relation(fields: [ownerId], references: [id])
-  departmentId String?
-  department   Department?   @relation(fields: [departmentId], references: [id])
-  parentId     String?
-  parent       Kpi?          @relation("KpiTree", fields: [parentId], references: [id])
-  children     Kpi[]         @relation("KpiTree")
-  metricUnit   String
-  direction    Direction     @default(MORE)
+  id              String             @id @default(cuid())
+  name            String
+  description     String?
+  ownerId         String
+  owner           User               @relation(fields: [ownerId], references: [id])
+  departmentId    String?
+  department      Department?        @relation(fields: [departmentId], references: [id])
+  parentId        String?
+  parent          Kpi?               @relation("KpiTree", fields: [parentId], references: [id])
+  children        Kpi[]              @relation("KpiTree")
+  metricUnit      String
+  direction       Direction          @default(MORE)
   calculationType KpiCalculationType @default(MANUAL)
-  weight       Int           @default(0)
-  yellowRange  Float         @default(5)
-  redRange     Float         @default(15)
-  priority     Int           @default(0)
-  archivedAt   DateTime?
-  measurements Measurement[]
-  actionPlans  ActionPlan[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  weight          Int                @default(0)
+  yellowRange     Float              @default(5)
+  redRange        Float              @default(15)
+  priority        Int                @default(0)
+  archivedAt      DateTime?
+  measurements    Measurement[]
+  actionPlans     ActionPlan[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
 
   @@index([ownerId])
   @@index([departmentId])
@@ -151,18 +152,19 @@ model Kpi {
 }
 
 model Measurement {
-  id           String       @id @default(cuid())
-  kpiId        String
-  kpi          Kpi          @relation(fields: [kpiId], references: [id], onDelete: Cascade)
-  period       String
-  goal         Float
-  actual       Float?
-  trafficLight TrafficLight @default(SEM_DADO)
-  reportedById String?
-  reportedBy   User?        @relation("ReportedBy", fields: [reportedById], references: [id])
-  actionPlans  ActionPlan[]
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id            String       @id @default(cuid())
+  kpiId         String
+  kpi           Kpi          @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  period        String
+  goal          Float
+  actual        Float?
+  trafficLight  TrafficLight @default(SEM_DADO)
+  reportedById  String?
+  reportedBy    User?        @relation("ReportedBy", fields: [reportedById], references: [id])
+  justification String?
+  actionPlans   ActionPlan[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   @@unique([kpiId, period])
   @@index([period])
@@ -193,8 +195,34 @@ model ActionPlan {
   createdBy     User             @relation("CreatedBy", fields: [createdById], references: [id])
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
+  paretoItems   ParetoItem[]
 
   @@unique([measurementId])
   @@index([kpiId])
   @@index([createdById])
+}
+
+model ParetoItem {
+  id           String     @id @default(cuid())
+  actionPlanId String
+  actionPlan   ActionPlan @relation(fields: [actionPlanId], references: [id], onDelete: Cascade)
+  phenomenon   String
+  quantity     Float
+  createdAt    DateTime   @default(now())
+
+  @@index([actionPlanId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String // e.g., "CREATE", "UPDATE", "DELETE"
+  entity    String // e.g., "Measurement", "ActionPlan"
+  entityId  String
+  details   String // JSON string with old/new values
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([entity, entityId])
 }

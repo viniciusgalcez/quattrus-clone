@@ -85,7 +85,7 @@ export function FCAForm({
   return (
     <>
       {/* Progress rail — turns a long page into three named, checkable steps. */}
-      <nav aria-label="Progresso do FCA" className="card flex flex-wrap items-center gap-2 p-3">
+      <nav aria-label="Progresso do FCA" className="card flex flex-wrap items-center gap-1 p-1">
         {SECTIONS.map((section) => {
           const isDone = done[section.id];
           const isActive = activeId === section.id;
@@ -115,7 +115,7 @@ export function FCAForm({
         <FormError message={state?.error} />
 
         {/* ── 1. Fato ─────────────────────────────────────────────────────── */}
-        <section id="fca-fato" className="card flex scroll-mt-4 flex-col gap-3 p-5">
+        <section id="fca-fato" className="card flex scroll-mt-4 flex-col gap-1 p-2">
           <header>
             <div className="flex items-center gap-2">
               <span className="font-mono-num text-[11px] font-bold text-[var(--color-ink-400)]">01</span>
@@ -128,10 +128,10 @@ export function FCAForm({
             </p>
           </header>
 
-          <div className="flex flex-wrap items-end gap-5 rounded-lg bg-[var(--color-brand-50)] px-4 py-3">
+          <div className="flex flex-wrap items-end gap-2 bg-[#d4d0c8] px-2 py-1 border border-[var(--color-border-strong)]">
             <div>
               <div className="field-label">Meta</div>
-              <div className="font-mono-num mt-1 text-[15px] font-semibold text-[var(--color-ink-900)]">
+              <div className="font-mono-num mt-0 text-[11px] font-semibold text-[var(--color-ink-900)]">
                 {measurement.goal}{" "}
                 <span className="text-[11px] font-medium text-[var(--color-ink-500)]">
                   {measurement.metricUnit}
@@ -140,7 +140,7 @@ export function FCAForm({
             </div>
             <div>
               <div className="field-label">Realizado</div>
-              <div className="font-mono-num mt-1 text-[15px] font-semibold text-[var(--color-ink-900)]">
+              <div className="font-mono-num mt-0 text-[11px] font-semibold text-[var(--color-ink-900)]">
                 {measurement.actual !== null ? measurement.actual : "—"}{" "}
                 {measurement.actual !== null && (
                   <span className="text-[11px] font-medium text-[var(--color-ink-500)]">
@@ -174,7 +174,7 @@ export function FCAForm({
         </section>
 
         {/* ── 2. Causa ────────────────────────────────────────────────────── */}
-        <section id="fca-causa" className="card flex scroll-mt-4 flex-col gap-4 p-5">
+        <section id="fca-causa" className="card flex scroll-mt-4 flex-col gap-2 p-2">
           <header>
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-mono-num text-[11px] font-bold text-[var(--color-ink-400)]">02</span>
@@ -235,8 +235,8 @@ export function FCAForm({
             })}
           </div>
 
-          <div className="flex flex-col gap-1.5 rounded-lg border border-[#e8d3a3] bg-[var(--color-amber-100)] p-3.5">
-            <label htmlFor="fca-root" className="field-label text-[var(--color-amber-600)]">
+          <div className="flex flex-col gap-1 border border-[var(--color-border-strong)] bg-[#e6e6e6] p-2">
+            <label htmlFor="fca-root" className="field-label">
               Causa raiz — a conclusão da cadeia
             </label>
             <textarea
@@ -251,7 +251,7 @@ export function FCAForm({
         </section>
 
         {/* ── 3. Ação ─────────────────────────────────────────────────────── */}
-        <section id="fca-acao" className="card flex scroll-mt-4 flex-col gap-4 p-5">
+        <section id="fca-acao" className="card flex scroll-mt-4 flex-col gap-2 p-2">
           <header>
             <div className="flex items-center gap-2">
               <span className="font-mono-num text-[11px] font-bold text-[var(--color-ink-400)]">03</span>
@@ -265,8 +265,8 @@ export function FCAForm({
             </p>
           </header>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="flex flex-col gap-1">
               <label htmlFor="fca-what" className="field-label">
                 O que (What)
               </label>
@@ -279,7 +279,7 @@ export function FCAForm({
                 className="input-field"
               />
             </div>
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1">
               <label htmlFor="fca-who" className="field-label">
                 Quem (Who)
               </label>
@@ -292,7 +292,7 @@ export function FCAForm({
                 className="input-field"
               />
             </div>
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1">
               <label htmlFor="fca-where" className="field-label">
                 Onde (Where)
               </label>
@@ -305,7 +305,7 @@ export function FCAForm({
                 className="input-field"
               />
             </div>
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1">
               <label htmlFor="fca-when" className="field-label">
                 Quando (When)
               </label>
@@ -317,7 +317,7 @@ export function FCAForm({
                 className="input-field"
               />
             </div>
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1">
               <label htmlFor="fca-howmuch" className="field-label">
                 Quanto custa (How much)
               </label>
@@ -332,7 +332,7 @@ export function FCAForm({
               />
               <FieldError message={state?.fieldErrors?.howMuch} />
             </div>
-            <div className="col-span-1 flex flex-col gap-1.5 sm:col-span-2">
+            <div className="col-span-1 flex flex-col gap-1 sm:col-span-2">
               <label htmlFor="fca-why" className="field-label">
                 Por que (Why)
               </label>
@@ -345,7 +345,7 @@ export function FCAForm({
                 className="input-field"
               />
             </div>
-            <div className="col-span-1 flex flex-col gap-1.5 sm:col-span-2">
+            <div className="col-span-1 flex flex-col gap-1 sm:col-span-2">
               <label htmlFor="fca-how" className="field-label">
                 Como (How)
               </label>
@@ -370,7 +370,7 @@ export function FCAForm({
       </form>
 
       {plan && (
-        <div className="card flex flex-wrap items-center justify-between gap-3 p-4">
+        <div className="card flex flex-wrap items-center justify-between gap-1 p-2">
           <p className="text-[12px] text-[var(--color-ink-500)]">
             {plan.status === "ABERTO"
               ? "Este plano está em aberto e conta como FCA pendente no painel."

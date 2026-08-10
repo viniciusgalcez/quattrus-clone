@@ -1,4 +1,4 @@
-﻿import { LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { signOut } from "@/lib/auth";
 
 type HeaderUser = {
@@ -20,16 +20,16 @@ export function Header({ user, children }: { user: HeaderUser, children?: React.
   const displayName = user?.name ?? user?.username ?? "Visitante";
 
   return (
-    <div className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-6">
+    <div className="flex h-8 shrink-0 items-center justify-between border-b border-[var(--color-border)] bg-[#d4d0c8] px-2">
       <div className="flex items-center">
         {children}
       </div>
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-brand-100)] text-[11px] font-bold text-[var(--color-brand-700)]">
+        <div className="flex items-center gap-1">
+          <div className="flex h-5 w-5 items-center justify-center bg-[var(--color-brand-100)] text-[9px] font-bold text-[var(--color-brand-700)]">
             {initials(user?.name, user?.username ?? "?")}
           </div>
-          <span className="text-[13px] font-medium text-[var(--color-ink-700)]">{displayName}</span>
+          <span className="text-[11px] font-bold text-[var(--color-ink-900)]">{displayName}</span>
         </div>
         <form
           action={async () => {
@@ -40,7 +40,7 @@ export function Header({ user, children }: { user: HeaderUser, children?: React.
           <button
             type="submit"
             title="Sair"
-            className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--color-ink-400)] transition-colors hover:bg-[var(--color-neutral-100)] hover:text-[var(--color-red-600)]"
+            className="flex h-5 w-5 items-center justify-center border border-[var(--color-border-strong)] bg-white text-[var(--color-ink-700)] hover:bg-[#e5e5e5] hover:text-[var(--color-red-600)]"
           >
             <LogOut className="h-3.5 w-3.5" />
           </button>

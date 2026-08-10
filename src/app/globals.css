@@ -1,46 +1,42 @@
 @import "tailwindcss";
 
 :root {
-  --color-bg: #f6f6fb;
+  --color-bg: #e5e5e5;
   --color-surface: #ffffff;
-  --color-border: #e6e6f0;
-  --color-border-strong: #d7d7e6;
+  --color-border: #a0a0a0;
+  --color-border-strong: #808080;
 
-  --color-ink-900: #1a1a2b;
-  --color-ink-700: #38384f;
-  --color-ink-500: #6b6b82;
-  --color-ink-400: #9393a8;
+  --color-ink-900: #000000;
+  --color-ink-700: #333333;
+  --color-ink-500: #666666;
+  --color-ink-400: #999999;
 
-  /* Indigo — nod to indigo dye, the textile pigment. Primary brand + interactive color. */
-  --color-brand-900: #1c1a42;
-  --color-brand-700: #2e2b6b;
-  --color-brand-600: #3d3a8c;
-  --color-brand-500: #4c48a8;
-  --color-brand-100: #ecebf8;
-  --color-brand-50: #f5f4fc;
+  /* Classic Corporate Blue */
+  --color-brand-900: #001a33;
+  --color-brand-700: #003366;
+  --color-brand-600: #004080;
+  --color-brand-500: #0059b3;
+  --color-brand-100: #cce0ff;
+  --color-brand-50: #e6f0ff;
 
-  /* Terracotta — warm accent, used sparingly (thread/dye color pairing). */
-  --color-accent-600: #b8531f;
-  --color-accent-100: #fbead9;
+  --color-accent-600: #cc3300;
+  --color-accent-100: #ffcccc;
 
-  --color-green-600: #157f4a;
-  --color-green-100: #dff5e8;
-  --color-amber-600: #b56a05;
-  --color-amber-100: #fbedcf;
-  --color-red-600: #c62b2b;
-  --color-red-100: #fbe1e1;
-  --color-critico-600: #7a1d2e;
-  --color-critico-100: #f3dde1;
-  --color-neutral-600: #6b6b82;
-  --color-neutral-200: #dcdce6;
-  --color-neutral-100: #ececf3;
+  --color-green-600: #008000;
+  --color-green-100: #ccffcc;
+  --color-amber-600: #ff9900;
+  --color-amber-100: #ffffcc;
+  --color-red-600: #cc0000;
+  --color-red-100: #ffcccc;
+  --color-critico-600: #800000;
+  --color-critico-100: #e6b3b3;
+  --color-neutral-600: #666666;
+  --color-neutral-200: #cccccc;
+  --color-neutral-100: #e5e5e5;
 
-  /* Chart series — validated: CVD separation ΔE 27.2 protan / 26.9 tritan,
-     and both clear 3:1 against the card surface.
-     "Previsto" is the recessive reference, "Realizado" the measured value. */
-  --chart-previsto: #8f8fa8;
-  --chart-realizado: #3d3a8c;
-  --chart-grid: #eeeef5;
+  --chart-previsto: #808080;
+  --chart-realizado: #004080;
+  --chart-grid: #cccccc;
 }
 
 @layer base {
@@ -53,61 +49,40 @@
   body {
     background-color: var(--color-bg);
     color: var(--color-ink-900);
-    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
-    font-size: 14px;
-    -webkit-font-smoothing: antialiased;
+    font-family: Tahoma, Arial, sans-serif;
+    font-size: 11px;
+    -webkit-font-smoothing: auto;
   }
   h1, h2, h3, .font-display {
-    font-family: var(--font-display), var(--font-sans), sans-serif;
+    font-family: Tahoma, Arial, sans-serif;
   }
   .font-mono-num {
-    font-family: var(--font-mono), ui-monospace, monospace;
+    font-family: Consolas, "Courier New", monospace;
     font-variant-numeric: tabular-nums;
   }
   :focus-visible {
-    outline: 2px solid var(--color-brand-500);
-    outline-offset: 2px;
-  }
-
-  /* Motion is always optional: every transition/animation added below collapses
-     to an instant state change when the reader asks for reduced motion. */
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-      scroll-behavior: auto !important;
-    }
-  }
-
-  /* Touch devices get real targets without inflating the dense desktop table. */
-  @media (pointer: coarse) {
-    .btn,
-    .input-field {
-      min-height: 44px;
-    }
+    outline: 1px dotted var(--color-ink-900);
+    outline-offset: -1px;
   }
 }
 
 @layer components {
   .card {
     background-color: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: 0.875rem;
-    box-shadow: 0 1px 2px 0 rgba(26, 26, 43, 0.04);
+    border: 1px solid var(--color-border-strong);
+    border-radius: 0;
+    box-shadow: none;
   }
 
   .card-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.9rem 1.25rem;
-    border-bottom: 1px solid var(--color-border);
-    font-family: var(--font-display), sans-serif;
-    font-weight: 600;
-    font-size: 13.5px;
+    padding: 2px 4px;
+    border-bottom: 1px solid var(--color-border-strong);
+    background-color: #d4d0c8;
+    font-weight: bold;
+    font-size: 11px;
     color: var(--color-ink-900);
   }
 
@@ -115,51 +90,49 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.375rem;
-    border-radius: 0.5rem;
-    padding: 0.45rem 0.85rem;
-    font-size: 12.5px;
-    font-weight: 600;
+    gap: 2px;
+    border-radius: 0;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-weight: normal;
     border: 1px solid var(--color-border-strong);
-    background-color: var(--color-surface);
-    color: var(--color-ink-700);
-    transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+    background: linear-gradient(to bottom, #ffffff 0%, #e5e5e5 100%);
+    color: var(--color-ink-900);
+    cursor: pointer;
   }
   .btn:hover {
-    background-color: var(--color-neutral-100);
-    border-color: var(--color-ink-400);
+    background: linear-gradient(to bottom, #e5e5e5 0%, #d4d0c8 100%);
   }
   .btn-primary {
-    background-color: var(--color-brand-600);
+    background: linear-gradient(to bottom, #cce0ff 0%, #99c2ff 100%);
     border-color: var(--color-brand-600);
-    color: #ffffff;
+    color: var(--color-brand-900);
   }
   .btn-primary:hover {
-    background-color: var(--color-brand-700);
-    border-color: var(--color-brand-700);
+    background: linear-gradient(to bottom, #99c2ff 0%, #66a3ff 100%);
   }
   .btn-ghost {
+    background: transparent;
     border-color: transparent;
-    background-color: transparent;
   }
   .btn-ghost:hover {
-    background-color: var(--color-brand-50);
+    background: #e6f0ff;
+    border-color: var(--color-brand-100);
   }
 
   .input-field {
     width: 100%;
     border: 1px solid var(--color-border-strong);
-    border-radius: 0.5rem;
-    padding: 0.4rem 0.65rem;
-    font-size: 13px;
+    border-radius: 0;
+    padding: 2px 4px;
+    font-size: 11px;
     background-color: var(--color-surface);
     color: var(--color-ink-900);
     outline: none;
-    transition: border-color 0.12s ease, box-shadow 0.12s ease;
   }
   .input-field:focus {
-    border-color: var(--color-brand-500);
-    box-shadow: 0 0 0 3px var(--color-brand-100);
+    border-color: var(--color-brand-600);
+    background-color: #ffffe0;
   }
   .input-field:disabled {
     background-color: var(--color-neutral-100);
@@ -167,11 +140,9 @@
   }
 
   .field-label {
-    font-size: 11.5px;
-    font-weight: 600;
-    color: var(--color-ink-500);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    font-size: 11px;
+    font-weight: bold;
+    color: var(--color-ink-900);
   }
 
   .table-modern {
@@ -181,364 +152,152 @@
   .table-modern thead th {
     text-align: left;
     font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--color-ink-500);
-    padding: 0.6rem 1rem;
-    border-bottom: 1px solid var(--color-border);
-    background-color: var(--color-brand-50);
-  }
-  /* Row headers (the entity each row is about) share the body cell's look but
-     keep their semantics, so screen readers announce "Indicador X, Previsto". */
-  .table-modern tbody th {
-    text-align: left;
-    font-weight: 500;
+    font-weight: bold;
+    color: var(--color-ink-900);
+    padding: 2px 4px;
+    border: 1px solid var(--color-border-strong);
+    background-color: #d4d0c8;
   }
   .table-modern tbody th,
   .table-modern tbody td {
-    padding: 0.65rem 1rem;
-    font-size: 13px;
-    border-bottom: 1px solid var(--color-border);
-    color: var(--color-ink-700);
+    padding: 2px 4px;
+    font-size: 11px;
+    border: 1px solid var(--color-border);
+    color: var(--color-ink-900);
   }
-  .table-modern tbody tr {
-    transition: background-color 0.12s ease;
+  .table-modern tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
   }
   .table-modern tbody tr:hover {
-    background-color: var(--color-brand-50);
+    background-color: #e6f0ff;
   }
 
   .badge {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
-    border-radius: 999px;
-    padding: 0.2rem 0.6rem;
-    font-size: 11px;
-    font-weight: 700;
+    border-radius: 0;
+    padding: 1px 3px;
+    font-size: 10px;
+    font-weight: bold;
+    border: 1px solid var(--color-border-strong);
   }
-  .badge::before {
-    content: "";
-    width: 6px;
-    height: 6px;
-    border-radius: 999px;
-    background-color: currentColor;
-  }
-  .badge-verde {
-    background-color: var(--color-green-100);
-    color: var(--color-green-600);
-  }
-  .badge-amarelo {
-    background-color: var(--color-amber-100);
-    color: var(--color-amber-600);
-  }
-  .badge-vermelho {
-    background-color: var(--color-red-100);
-    color: var(--color-red-600);
-  }
-  .badge-neutro {
-    background-color: var(--color-neutral-100);
-    color: var(--color-neutral-600);
-  }
-  .badge-critico {
-    background-color: var(--color-critico-100);
-    color: var(--color-critico-600);
-  }
+  .badge-verde { background-color: var(--color-green-100); color: var(--color-green-600); }
+  .badge-amarelo { background-color: var(--color-amber-100); color: var(--color-amber-600); }
+  .badge-vermelho { background-color: var(--color-red-100); color: var(--color-red-600); }
+  .badge-neutro { background-color: var(--color-neutral-100); color: var(--color-neutral-600); }
+  .badge-critico { background-color: var(--color-critico-100); color: var(--color-critico-600); }
 
-  .status-rail-verde { border-left: 3px solid var(--color-green-600); }
-  .status-rail-amarelo { border-left: 3px solid var(--color-amber-600); }
-  .status-rail-vermelho { border-left: 3px solid var(--color-red-600); }
-  .status-rail-critico { border-left: 3px solid var(--color-critico-600); }
-  .status-rail-neutro { border-left: 3px solid var(--color-neutral-600); }
-
-  /* ── Page chrome ─────────────────────────────────────────────────────── */
+  .status-rail-verde { border-left: 2px solid var(--color-green-600); }
+  .status-rail-amarelo { border-left: 2px solid var(--color-amber-600); }
+  .status-rail-vermelho { border-left: 2px solid var(--color-red-600); }
+  .status-rail-critico { border-left: 2px solid var(--color-critico-600); }
+  .status-rail-neutro { border-left: 2px solid var(--color-neutral-600); }
 
   .page-title {
-    font-family: var(--font-display), sans-serif;
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--color-ink-900);
-    letter-spacing: -0.01em;
+    font-size: 14px;
+    font-weight: bold;
+    color: var(--color-brand-700);
   }
   .page-subtitle {
-    font-size: 12.5px;
+    font-size: 11px;
     color: var(--color-ink-500);
   }
 
-  /* ── Stat tiles ──────────────────────────────────────────────────────── */
-
   .stat-value {
-    font-family: var(--font-mono), ui-monospace, monospace;
-    font-variant-numeric: tabular-nums;
-    font-weight: 600;
-    line-height: 1.05;
-    letter-spacing: -0.02em;
+    font-family: Consolas, monospace;
+    font-weight: bold;
   }
-  /* Exactly one hero figure per view — the ciclo score. */
   .stat-hero {
-    font-size: 46px;
+    font-size: 12px;
   }
 
-  /* The urgent tile. Terracotta-tinted surface so it separates from the
-     neutral cards without borrowing a status color from the badge scale. */
-  .tile-urgent {
-    background-color: var(--color-accent-100);
-    border-color: #eccdb0;
-  }
-  a.tile-urgent:hover {
-    border-color: var(--color-accent-600);
-    box-shadow: 0 2px 10px -2px rgba(184, 83, 31, 0.28);
-  }
-  .tile-calm {
-    background-color: var(--color-brand-50);
-    border-color: var(--color-brand-100);
-  }
-
-  /* ── Status distribution meter (5 tiers, always paired with text) ────── */
+  .tile-urgent { background-color: #ffcccc; border-color: #cc0000; }
+  a.tile-urgent:hover { border-color: #990000; }
+  .tile-calm { background-color: #ccffcc; border-color: #008000; }
 
   .meter {
     display: flex;
     width: 100%;
-    height: 10px;
-    gap: 2px; /* surface gap, never a stroke */
-    overflow: hidden;
-    border-radius: 999px;
+    height: 8px;
+    border: 1px solid var(--color-border-strong);
+    background-color: #fff;
   }
-  .meter-seg {
-    height: 100%;
-    border-radius: 2px;
-    min-width: 3px;
-  }
-  .meter-seg:first-child { border-radius: 999px 2px 2px 999px; }
-  .meter-seg:last-child { border-radius: 2px 999px 999px 2px; }
+  .meter-seg { height: 100%; }
   .meter-seg-verde { background-color: var(--color-green-600); }
   .meter-seg-amarelo { background-color: var(--color-amber-600); }
   .meter-seg-vermelho { background-color: var(--color-red-600); }
   .meter-seg-critico { background-color: var(--color-critico-600); }
   .meter-seg-neutro { background-color: var(--color-neutral-200); }
 
-  /* ── Tables ──────────────────────────────────────────────────────────── */
-
-  /* Horizontal scroll container: tables shrink to a min-width and scroll
-     instead of clipping or squashing on narrow viewports. */
-  .table-scroll {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  .table-scroll > table {
-    min-width: 640px;
-  }
-  .table-modern td.num,
-  .table-modern th.num {
+  .table-scroll { overflow-x: auto; }
+  .table-modern td.num, .table-modern th.num {
     text-align: right;
-    font-family: var(--font-mono), ui-monospace, monospace;
-    font-variant-numeric: tabular-nums;
+    font-family: Consolas, monospace;
     white-space: nowrap;
   }
-  /* Editable rows: the whole row reacts, so the inline inputs read as fields
-     rather than as decoration. */
-  .row-editable td {
-    vertical-align: middle;
-  }
-  .row-editable:focus-within {
-    background-color: var(--color-brand-50);
-  }
 
-  /* Flat until touched — signals "editable" without 6 boxed inputs per row. */
   .input-inline {
-    width: 92px;
+    width: 80px;
     border: 1px solid transparent;
-    border-bottom-color: var(--color-border-strong);
-    border-radius: 0.375rem;
-    padding: 0.3rem 0.5rem;
-    font-size: 13px;
+    padding: 1px 2px;
+    font-size: 11px;
     text-align: right;
+    font-family: Consolas, monospace;
     background-color: transparent;
-    color: var(--color-ink-900);
-    font-family: var(--font-mono), ui-monospace, monospace;
-    font-variant-numeric: tabular-nums;
-    outline: none;
-    transition: border-color 0.12s ease, background-color 0.12s ease, box-shadow 0.12s ease;
   }
   .input-inline:hover {
     border-color: var(--color-border-strong);
-    background-color: var(--color-surface);
+    background-color: #fff;
   }
   .input-inline:focus {
-    border-color: var(--color-brand-500);
-    background-color: var(--color-surface);
-    box-shadow: 0 0 0 3px var(--color-brand-100);
+    border-color: var(--color-brand-600);
+    background-color: #ffffe0;
   }
-  .input-inline::placeholder {
-    color: var(--color-ink-400);
-  }
-  @media (pointer: coarse) {
-    .input-inline { min-height: 44px; }
-  }
-
-  /* ── Empty states ────────────────────────────────────────────────────── */
 
   .empty-state {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.5rem;
-    padding: 2.5rem 1.5rem;
+    gap: 4px;
+    padding: 10px;
     text-align: center;
   }
-  .empty-state-icon {
-    display: flex;
-    height: 2.75rem;
-    width: 2.75rem;
-    align-items: center;
-    justify-content: center;
-    border-radius: 999px;
-    background-color: var(--color-brand-100);
-    color: var(--color-brand-600);
-  }
-  .empty-state-title {
-    font-family: var(--font-display), sans-serif;
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--color-ink-900);
-  }
-  .empty-state-text {
-    max-width: 42ch;
-    font-size: 12.5px;
-    line-height: 1.55;
-    color: var(--color-ink-500);
-  }
+  .empty-state-icon { display: none; }
+  .empty-state-title { font-weight: bold; font-size: 11px; }
+  .empty-state-text { font-size: 11px; }
 
-  /* ── Skeletons ───────────────────────────────────────────────────────── */
-
-  .skeleton {
-    background-color: var(--color-neutral-100);
-    border-radius: 0.5rem;
-    position: relative;
-    overflow: hidden;
-  }
-  .skeleton::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    transform: translateX(-100%);
-    background-image: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.65),
-      transparent
-    );
-    animation: skeleton-sweep 1.4s ease-in-out infinite;
-  }
-  @keyframes skeleton-sweep {
-    100% { transform: translateX(100%); }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .skeleton::after { display: none; }
-  }
-
-  /* ── FCA: the 5-whys chain ───────────────────────────────────────────── */
-
-  .why-chain {
-    display: flex;
-    flex-direction: column;
-  }
+  .why-chain { display: flex; flex-direction: column; gap: 4px; }
   .why-step {
     display: grid;
-    grid-template-columns: 1.75rem 1fr;
-    gap: 0.75rem;
-    padding-bottom: 0.75rem;
-    position: relative;
-  }
-  /* The connector that makes it read as one causal chain, not five boxes. */
-  .why-step:not(:last-child)::before {
-    content: "";
-    position: absolute;
-    left: 0.8125rem;
-    top: 1.75rem;
-    bottom: 0;
-    width: 1px;
-    background-color: var(--color-border-strong);
+    grid-template-columns: 16px 1fr;
+    gap: 4px;
   }
   .why-dot {
-    z-index: 1;
-    display: flex;
-    height: 1.625rem;
-    width: 1.625rem;
-    align-items: center;
-    justify-content: center;
-    border-radius: 999px;
+    font-size: 9px;
+    font-weight: bold;
     border: 1px solid var(--color-border-strong);
-    background-color: var(--color-surface);
-    font-family: var(--font-mono), ui-monospace, monospace;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--color-ink-500);
-    transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+    background-color: #d4d0c8;
+    text-align: center;
+    line-height: 14px;
+    width: 16px;
+    height: 16px;
   }
-  .why-step-filled .why-dot {
-    background-color: var(--color-brand-600);
-    border-color: var(--color-brand-600);
-    color: #ffffff;
-  }
-  .why-step-next .why-dot {
-    border-color: var(--color-brand-500);
-    color: var(--color-brand-700);
-  }
-  /* Not hidden — still submits, still reachable by keyboard — just quieter. */
-  .why-step-pending {
-    opacity: 0.55;
-  }
-  .why-step-pending:focus-within,
-  .why-step-pending:hover {
-    opacity: 1;
-  }
-
-  /* ── FCA: step navigation ────────────────────────────────────────────── */
+  .why-step-filled .why-dot { background-color: var(--color-brand-500); color: #fff; }
+  .why-step-next .why-dot { border-color: var(--color-brand-500); }
+  .why-step-pending { opacity: 0.6; }
 
   .step-chip {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    border-radius: 999px;
-    border: 1px solid var(--color-border);
-    background-color: var(--color-surface);
-    padding: 0.3rem 0.7rem;
-    font-size: 11.5px;
-    font-weight: 600;
-    color: var(--color-ink-500);
-    white-space: nowrap;
+    gap: 4px;
+    border: 1px solid var(--color-border-strong);
+    background-color: #d4d0c8;
+    padding: 2px 4px;
+    font-size: 11px;
   }
-  .step-chip-done {
-    border-color: var(--color-green-600);
-    background-color: var(--color-green-100);
-    color: var(--color-green-600);
-  }
-  .step-chip-active {
-    border-color: var(--color-brand-600);
-    background-color: var(--color-brand-100);
-    color: var(--color-brand-700);
-  }
-  .step-index {
-    display: inline-flex;
-    height: 1.1rem;
-    width: 1.1rem;
-    align-items: center;
-    justify-content: center;
-    border-radius: 999px;
-    background-color: currentColor;
-    font-family: var(--font-mono), ui-monospace, monospace;
-    font-size: 9.5px;
-    font-weight: 700;
-  }
-  .step-index > span {
-    color: var(--color-surface);
-  }
+  .step-chip-done { border-color: var(--color-green-600); background-color: var(--color-green-100); }
+  .step-chip-active { border-color: var(--color-brand-600); background-color: var(--color-brand-100); }
+  .step-index { font-weight: bold; font-size: 9px; }
 
-  .section-hint {
-    font-size: 11.5px;
-    line-height: 1.5;
-    color: var(--color-ink-500);
-  }
+  .section-hint { font-size: 10px; font-style: italic; color: var(--color-ink-500); }
 }
