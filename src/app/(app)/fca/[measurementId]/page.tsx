@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { auth } from "@/lib/auth";
@@ -19,7 +19,12 @@ export default async function FCAPage({
 
   const measurement = await prisma.measurement.findUnique({
     where: { id: measurementId },
-    include: { kpi: { include: { owner: true } }, actionPlans: true },
+    include: { 
+      kpi: { include: { owner: true } }, 
+      actionPlans: {
+        include: { paretoItems: true }
+      } 
+    },
   });
 
   if (!measurement) notFound();
@@ -29,6 +34,7 @@ export default async function FCAPage({
 
   const plan = measurement.actionPlans[0] ?? null;
   const deviation = getDeviationPct(measurement.goal, measurement.actual, measurement.kpi.direction);
+  const paretoItems = plan?.paretoItems ?? [];
 
   return (
     <div className="mx-auto flex max-w-[760px] flex-col gap-5">
@@ -60,6 +66,7 @@ export default async function FCAPage({
         }}
         plan={plan}
         deviation={deviation}
+        initialParetoItems={paretoItems}
       />
     </div>
   );

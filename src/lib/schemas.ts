@@ -54,6 +54,7 @@ export const upsertMeasurementSchema = z.object({
   kpiId: z.string().trim().min(1),
   goal: numberFromForm(),
   actual: nullableNumberFromForm(),
+  justification: optionalText(500),
 });
 
 export const saveActionPlanSchema = z.object({

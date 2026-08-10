@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   ArrowLeft,
@@ -36,12 +36,23 @@ export default async function Home({
   const { userId: queryUserId } = await searchParams;
 
   let viewedUserId = session.user.id;
+  let accessError = null;
+
   if (queryUserId && queryUserId !== session.user.id) {
     const allowed = await canView(session.user.id, session.user.role, queryUserId);
-    if (allowed) viewedUserId = queryUserId;
+    if (allowed) {
+      viewedUserId = queryUserId;
+    } else {
+      accessError = "Você não tem permissão para visualizar o painel deste usuário.";
+    }
   }
 
   const viewedUser = await prisma.user.findUnique({ where: { id: viewedUserId } });
+  
+  if (queryUserId && !viewedUser && !accessError) {
+    accessError = "O usuário solicitado não foi encontrado no sistema.";
+  }
+
   const period = currentPeriod();
 
   const kpis = await prisma.kpi.findMany({
@@ -149,6 +160,16 @@ export default async function Home({
           </Link>
         )}
       </div>
+
+      {accessError && (
+        <div className="card mb-4 border-[var(--color-red-200)] bg-[var(--color-red-50)] p-4 text-[14px] text-[var(--color-red-700)] shadow-sm">
+          <div className="flex items-center gap-2 font-medium">
+            <TriangleAlert className="h-5 w-5" />
+            Não foi possível carregar o painel solicitado.
+          </div>
+          <p className="mt-1 ml-7 text-[13px] opacity-90">{accessError}</p>
+        </div>
+      )}
 
       {/* "Como estou" — one hero figure, then the distribution that explains it. */}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">

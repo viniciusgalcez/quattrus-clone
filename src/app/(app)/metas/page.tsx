@@ -150,6 +150,7 @@ export default async function MetasPage() {
                 <th scope="col" className="num">
                   Realizado
                 </th>
+                <th scope="col">Parecer Mensal</th>
                 <th scope="col">Status</th>
                 <th scope="col" className="text-right">
                   Ações
@@ -211,6 +212,19 @@ export default async function MetasPage() {
                         defaultValue={measurement?.actual ?? ""}
                         placeholder="—"
                         className="input-inline"
+                      />
+                    </td>
+
+                    <td>
+                      <input
+                        form={formId}
+                        type="text"
+                        name="justification"
+                        aria-label={`Parecer de ${kpi.name}`}
+                        defaultValue={measurement?.justification ?? ""}
+                        placeholder="Opcional..."
+                        className="input-inline"
+                        style={{ width: '120px' }}
                       />
                     </td>
 

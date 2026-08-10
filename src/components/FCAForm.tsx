@@ -15,6 +15,12 @@ type MeasurementInfo = {
   metricUnit: string;
 };
 
+type ParetoItemInput = {
+  id?: string;
+  phenomenon: string;
+  quantity: number;
+};
+
 const WHY_NUMBERS = [1, 2, 3, 4, 5] as const;
 
 /** Live snapshot of what the user has filled in, used only to drive progress UI. */
@@ -37,12 +43,15 @@ export function FCAForm({
   measurement,
   plan,
   deviation,
+  initialParetoItems = [],
 }: {
   measurement: MeasurementInfo;
   plan: ActionPlan | null;
   deviation: number | null;
+  initialParetoItems?: ParetoItemInput[];
 }) {
   const [state, formAction] = useActionState(saveActionPlan, null);
+  const [paretoItems, setParetoItems] = useState<ParetoItemInput[]>(initialParetoItems);
 
   const planField = (key: string) => String((plan?.[key as keyof ActionPlan] as string) ?? "").trim();
 
@@ -111,8 +120,76 @@ export function FCAForm({
 
       <form action={formAction} onInput={handleInput} className="flex flex-col gap-4">
         <input type="hidden" name="measurementId" value={measurement.id} />
+        <input type="hidden" name="paretoItemsJson" value={JSON.stringify(paretoItems)} />
 
         <FormError message={state?.error} />
+
+        {/* ── 0. Pareto ─────────────────────────────────────────────────────── */}
+        <section id="fca-pareto" className="card flex scroll-mt-4 flex-col gap-1 p-2">
+          <header>
+            <div className="flex items-center gap-2">
+              <span className="font-mono-num text-[11px] font-bold text-[var(--color-ink-400)]">00</span>
+              <h2 className="font-display text-[13.5px] font-semibold text-[var(--color-ink-900)]">
+                Estratificação (Pareto)
+              </h2>
+            </div>
+            <p className="section-hint mt-1">
+              Fatie o problema. Liste os fenômenos (ex: produtos, máquinas) e as quantidades.
+            </p>
+          </header>
+
+          <div className="flex flex-col gap-2 border border-[var(--color-border)] rounded-md bg-[var(--color-neutral-100)] p-4">
+            <table className="table-modern text-[11px]">
+              <thead>
+                <tr>
+                  <th>Fenômeno</th>
+                  <th className="num w-[80px]">Qtd</th>
+                  <th className="w-[60px]"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {paretoItems.map((item, idx) => (
+                  <tr key={idx}>
+                    <td>
+                      <input 
+                        type="text" 
+                        value={item.phenomenon} 
+                        onChange={e => {
+                          const newItems = [...paretoItems];
+                          newItems[idx].phenomenon = e.target.value;
+                          setParetoItems(newItems);
+                        }}
+                        className="input-inline w-full"
+                      />
+                    </td>
+                    <td className="num">
+                      <input 
+                        type="number" 
+                        value={item.quantity} 
+                        onChange={e => {
+                          const newItems = [...paretoItems];
+                          newItems[idx].quantity = Number(e.target.value);
+                          setParetoItems(newItems);
+                        }}
+                        className="input-inline w-full"
+                      />
+                    </td>
+                    <td>
+                      <button type="button" onClick={() => setParetoItems(paretoItems.filter((_, i) => i !== idx))} className="text-[var(--color-red-600)] hover:underline">Remover</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <button 
+              type="button" 
+              onClick={() => setParetoItems([...paretoItems, { phenomenon: "", quantity: 0 }])}
+              className="text-[11px] font-semibold text-[var(--color-brand-700)] hover:underline self-start mt-1"
+            >
+              + Adicionar Fenômeno
+            </button>
+          </div>
+        </section>
 
         {/* ── 1. Fato ─────────────────────────────────────────────────────── */}
         <section id="fca-fato" className="card flex scroll-mt-4 flex-col gap-1 p-2">
@@ -128,7 +205,7 @@ export function FCAForm({
             </p>
           </header>
 
-          <div className="flex flex-wrap items-end gap-2 bg-[#d4d0c8] px-2 py-1 border border-[var(--color-border-strong)]">
+          <div className="flex flex-wrap items-end gap-3 bg-[var(--color-brand-50)] rounded-md px-3 py-2 border border-[var(--color-brand-100)]">
             <div>
               <div className="field-label">Meta</div>
               <div className="font-mono-num mt-0 text-[11px] font-semibold text-[var(--color-ink-900)]">
@@ -235,7 +312,7 @@ export function FCAForm({
             })}
           </div>
 
-          <div className="flex flex-col gap-1 border border-[var(--color-border-strong)] bg-[#e6e6e6] p-2">
+          <div className="flex flex-col gap-1.5 border border-[var(--color-border)] rounded-md bg-[var(--color-neutral-100)] p-3">
             <label htmlFor="fca-root" className="field-label">
               Causa raiz — a conclusão da cadeia
             </label>

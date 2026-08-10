@@ -172,13 +172,13 @@ export async function upsertMeasurement(formData: FormData) {
   // The current month is the only editable period — never trust a period
   // string coming from the client, or a past month could be silently rewritten.
   const period = currentPeriod();
-  const { goal, actual } = parsed.data;
+  const { goal, actual, justification } = parsed.data;
   const trafficLight = getKpiStatus(goal, actual, kpi.direction, kpi.yellowRange, kpi.redRange);
 
   const measurement = await prisma.measurement.upsert({
     where: { kpiId_period: { kpiId, period } },
-    update: { goal, actual, trafficLight, reportedById: user.id },
-    create: { kpiId, period, goal, actual, trafficLight, reportedById: user.id },
+    update: { goal, actual, trafficLight, justification, reportedById: user.id },
+    create: { kpiId, period, goal, actual, trafficLight, justification, reportedById: user.id },
   });
 
   // CRITICO is the worst tier — it must open an action plan too. Leaving it
@@ -246,7 +246,7 @@ export async function saveActionPlan(
     howMuch: v.howMuch,
   };
 
-  await prisma.actionPlan.upsert({
+  const actionPlan = await prisma.actionPlan.upsert({
     where: { measurementId },
     update: data,
     create: {
@@ -257,6 +257,30 @@ export async function saveActionPlan(
       status: "ABERTO",
     },
   });
+
+  const paretoJson = formData.get("paretoItemsJson") as string | null;
+  if (paretoJson) {
+    try {
+      const items = JSON.parse(paretoJson) as { phenomenon: string, quantity: number }[];
+      
+      // Delete existing to keep it simple, then insert new
+      await prisma.paretoItem.deleteMany({
+        where: { actionPlanId: actionPlan.id }
+      });
+      
+      if (items.length > 0) {
+        await prisma.paretoItem.createMany({
+          data: items.filter(i => i.phenomenon && i.quantity > 0).map(item => ({
+            actionPlanId: actionPlan.id,
+            phenomenon: item.phenomenon,
+            quantity: item.quantity
+          }))
+        });
+      }
+    } catch (e) {
+      console.error("Failed to save pareto items", e);
+    }
+  }
 
   revalidatePath("/metas");
   revalidatePath("/");

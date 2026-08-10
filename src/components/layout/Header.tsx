@@ -20,17 +20,18 @@ export function Header({ user, children }: { user: HeaderUser, children?: React.
   const displayName = user?.name ?? user?.username ?? "Visitante";
 
   return (
-    <div className="flex h-8 shrink-0 items-center justify-between border-b border-[var(--color-border)] bg-[#d4d0c8] px-2">
+    <div className="flex h-16 shrink-0 items-center justify-between border-b border-[var(--color-border)] bg-white px-6">
       <div className="flex items-center">
         {children}
       </div>
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1">
-          <div className="flex h-5 w-5 items-center justify-center bg-[var(--color-brand-100)] text-[9px] font-bold text-[var(--color-brand-700)]">
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-brand-100)] text-[14px] font-bold text-[var(--color-brand-700)] ring-1 ring-[var(--color-brand-200)]">
             {initials(user?.name, user?.username ?? "?")}
           </div>
-          <span className="text-[11px] font-bold text-[var(--color-ink-900)]">{displayName}</span>
+          <span className="text-[14px] font-semibold text-[var(--color-ink-900)]">{displayName}</span>
         </div>
+        <div className="h-6 w-px bg-[var(--color-border)] mx-1" />
         <form
           action={async () => {
             "use server";
@@ -40,9 +41,9 @@ export function Header({ user, children }: { user: HeaderUser, children?: React.
           <button
             type="submit"
             title="Sair"
-            className="flex h-5 w-5 items-center justify-center border border-[var(--color-border-strong)] bg-white text-[var(--color-ink-700)] hover:bg-[#e5e5e5] hover:text-[var(--color-red-600)]"
+            className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--color-border)] bg-white text-[var(--color-ink-500)] transition-colors hover:bg-[var(--color-red-50)] hover:text-[var(--color-red-600)] hover:border-[var(--color-red-200)]"
           >
-            <LogOut className="h-3.5 w-3.5" />
+            <LogOut className="h-4 w-4" />
           </button>
         </form>
       </div>
