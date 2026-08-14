@@ -1,36 +1,195 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Gestiona
 
-## Getting Started
+Sistema de gestão de KPIs e metas da **Capricórnio Têxtil S.A.**
 
-First, run the development server:
+O Gestiona organiza os indicadores da empresa em uma árvore hierárquica (um KPI
+pai desdobrado em KPIs filhos), registra as medições mensais de cada indicador,
+calcula automaticamente o farol (verde / amarelo / vermelho) comparando o
+realizado com a meta e abre planos de ação (FCA — Fato, Causa, Ação) para os
+indicadores que fecharam o mês fora da meta.
+
+O acesso é hierárquico: cada usuário enxerga os próprios indicadores e os de
+quem está abaixo dele na cadeia de gestão (ADMIN → GESTOR → COLABORADOR).
+
+## Stack
+
+| Camada        | Tecnologia                              |
+| ------------- | --------------------------------------- |
+| Framework     | Next.js 16 (App Router, `standalone`)   |
+| UI            | React 19, Tailwind CSS 4, Recharts      |
+| Autenticação  | NextAuth v5 (credenciais + JWT)         |
+| Banco / ORM   | PostgreSQL 16 + Prisma 6                |
+| Testes        | Vitest                                  |
+| Deploy        | Docker multi-stage + docker compose     |
+
+## Pré-requisitos
+
+- **Node.js 22 LTS** (a imagem de produção usa `node:22-alpine`)
+- **npm** 10+
+- **Docker** e **Docker Compose** (para o PostgreSQL local e para o deploy)
+
+## Setup local
+
+### 1. Instalar dependências
+
+```bash
+npm install
+```
+
+### 2. Configurar as variáveis de ambiente
+
+```bash
+cp .env.example .env
+```
+
+Edite o `.env` e gere um `AUTH_SECRET`:
+
+```bash
+openssl rand -base64 32
+```
+
+Sem `AUTH_SECRET` o NextAuth lança `MissingSecret` e **todas** as requisições
+retornam 500. As variáveis obrigatórias são `DATABASE_URL` e `AUTH_SECRET`;
+veja o `.env.example` para a lista completa.
+
+### 3. Subir o banco de dados
+
+```bash
+docker compose up -d postgres
+```
+
+O PostgreSQL fica exposto apenas em `127.0.0.1:5432` (não é acessível pela
+rede). As credenciais vêm de `POSTGRES_USER` / `POSTGRES_PASSWORD` /
+`POSTGRES_DB`, com o default local `quattrus/quattrus/quattrus`.
+
+### 4. Aplicar as migrations
+
+```bash
+npx prisma migrate dev
+```
+
+Isso cria o schema e gera o Prisma Client.
+
+### 5. Popular com dados de demonstração (opcional)
+
+> **Atenção:** o seed é **destrutivo**. Ele apaga TODOS os planos de ação,
+> medições, KPIs, usuários e departamentos antes de recriar as fixtures.
+> Por isso ele só roda com a flag `ALLOW_DESTRUCTIVE_SEED=true` e nunca
+> quando `NODE_ENV=production`.
+
+```bash
+# bash / zsh
+ALLOW_DESTRUCTIVE_SEED=true npm run db:seed
+```
+
+```powershell
+# PowerShell
+$env:ALLOW_DESTRUCTIVE_SEED="true"; npm run db:seed
+```
+
+### 6. Rodar a aplicação
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Acesse <http://localhost:3000>.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Usuários de demonstração
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Criados pelo seed. **Senha de todos: `demo123`** — são fixtures de
+desenvolvimento e não devem existir em nenhum ambiente real.
 
-## Learn More
+| Usuário           | Papel       | Departamento     | Gestor          |
+| ----------------- | ----------- | ---------------- | --------------- |
+| `ana.diretora`    | ADMIN       | Diretoria        | —               |
+| `carlos.gestor`   | GESTOR      | Comercial        | ana.diretora    |
+| `marina.gestora`  | GESTOR      | Financeiro       | ana.diretora    |
+| `julia.colab`     | COLABORADOR | Recursos Humanos | carlos.gestor   |
+| `pedro.colab`     | COLABORADOR | Produção         | carlos.gestor   |
+| `sergio.colab`    | COLABORADOR | Produção         | pedro.colab     |
+| `renata.colab`    | COLABORADOR | Financeiro       | marina.gestora  |
+| `roberto.exfunc`  | COLABORADOR | Produção         | — (**inativo**) |
 
-To learn more about Next.js, take a look at the following resources:
+Árvore de KPIs criada pelo seed (14 meses de histórico, cobrindo dois
+anos-calendário):
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Faturamento Bruto (`SUM`) → Vendas B2B, Vendas B2C
+- Índice de Qualidade → Taxa de Refugo → Refugo Tear 3
+- Despesa Total Financeiro (`WEIGHTED`) → Despesa Pessoal, Despesa Operacional
+- Redução de Despesas
+- Turnover
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+O seed também deixa 3 metas pendentes de aprovação (visíveis em
+`/aprovacoes` para `carlos.gestor` e `marina.gestora`) e 1 FCA concluído
+com os 5 porquês e um Pareto preenchidos (Taxa de Refugo), além dos FCAs
+abertos automaticamente nos indicadores fora da meta.
 
-## Deploy on Vercel
+## Testes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm test          # roda a suíte uma vez (vitest run)
+npm run test:watch # modo watch
+npm run lint       # ESLint
+npm run build      # verifica se o build de produção compila
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Health check
+
+`GET /api/health` faz um ping real no banco (`SELECT 1`):
+
+- `200 {"status":"ok"}` — aplicação e banco saudáveis
+- `503 {"status":"error"}` — banco inacessível
+
+É a rota usada pelo `healthcheck` do serviço `web` no docker compose.
+
+## Deploy em produção
+
+### 1. Definir as variáveis no host
+
+O `docker-compose.yml` lê as credenciais do ambiente do host. `AUTH_SECRET` é
+obrigatório e **não tem default** — o compose falha imediatamente se ele não
+estiver definido, em vez de deixar a aplicação quebrar em runtime.
+
+```bash
+export AUTH_SECRET="$(openssl rand -base64 32)"
+export POSTGRES_USER="gestiona"
+export POSTGRES_PASSWORD="<senha-forte>"
+export POSTGRES_DB="gestiona"
+```
+
+### 2. Validar e subir
+
+```bash
+docker compose config      # valida a interpolação das variáveis
+docker compose up -d --build
+```
+
+### 3. O que acontece no boot
+
+1. O serviço `postgres` sobe e só é considerado pronto após o `pg_isready`.
+2. O container `web` executa `prisma migrate deploy` no entrypoint, aplicando
+   as migrations pendentes de forma não interativa.
+   Nunca use `prisma migrate dev` em produção: ele é interativo e pode
+   **resetar o banco**.
+3. Em seguida o `node server.js` (build standalone do Next.js) inicia.
+4. O healthcheck do compose passa a consultar `/api/health` a cada 30s.
+
+### 4. Verificar
+
+```bash
+docker compose ps                      # o serviço web deve ficar "healthy"
+docker compose logs -f web
+curl -f http://localhost:3000/api/health
+```
+
+### Notas de operação
+
+- Em produção, remova o mapeamento de porta do serviço `postgres` — a rede
+  interna do compose já dá acesso ao banco para o serviço `web`.
+- O volume `quattrus_postgres_data` persiste os dados entre deploys. Faça
+  backup dele (`pg_dump`) antes de qualquer migration destrutiva.
+- Nunca rode `npm run db:seed` nem `prisma migrate reset` contra a base de
+  produção.
+- O `.env` está no `.dockerignore`: segredos entram no container por variável
+  de ambiente, nunca em uma camada da imagem.

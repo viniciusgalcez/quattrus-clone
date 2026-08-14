@@ -1,0 +1,15 @@
+Dockerfile
+.dockerignore
+docker-compose.yml
+node_modules
+npm-debug.log
+README.md
+.next
+.git
+.gitignore
+coverage
+
+# Never bake secrets into a build layer.
+.env
+.env.*
+!.env.example

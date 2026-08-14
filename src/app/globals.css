@@ -1,26 +1,394 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --color-bg: #eef2f4;
+  --color-surface: #ffffff;
+  --color-border: #dfe4e8;
+  --color-border-strong: #c7ced4;
+
+  --color-ink-900: #172431;
+  --color-ink-700: #33465a;
+  --color-ink-500: #64758a;
+  --color-ink-400: #93a3b3;
+
+  /* Teal/navy, matching the Quattrus | Gestiona chrome. */
+  --color-brand-900: #0b2a33;
+  --color-brand-700: #0f6b74;
+  --color-brand-600: #128a94;
+  --color-brand-500: #16a3ae;
+  --color-brand-100: #d5f0f1;
+  --color-brand-50: #eefaf9;
+
+  --color-navy-900: #0d1626;
+  --color-navy-800: #121e33;
+  --color-navy-700: #1a2b45;
+
+  --color-accent-600: #cc3300;
+  --color-accent-100: #ffcccc;
+
+  --color-green-600: #1c9a5b;
+  --color-green-100: #dcf5e7;
+  --color-amber-600: #e2a323;
+  --color-amber-100: #fbedcd;
+  --color-red-600: #e14b4b;
+  --color-red-100: #fbdede;
+  --color-critico-600: #9c1f2e;
+  --color-critico-100: #f2d3d7;
+  --color-neutral-600: #64758a;
+  --color-neutral-200: #dfe4e8;
+  --color-neutral-100: #eef2f4;
+
+  --chart-previsto: #8a99a8;
+  --chart-realizado: #0f6b74;
+  --chart-grid: #e3e8ec;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html {
+    background-color: var(--color-bg);
+  }
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-ink-900);
+    font-family: "Segoe UI", ui-sans-serif, system-ui, Arial, sans-serif;
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, .font-display {
+    font-family: "Segoe UI Semibold", "Segoe UI", ui-sans-serif, system-ui, Arial, sans-serif;
+    letter-spacing: -0.01em;
+  }
+  .font-mono-num {
+    font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 1px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(15, 43, 51, 0.04);
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+    font-weight: 600;
+    font-size: 12.5px;
+    color: var(--color-ink-900);
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    border-radius: 7px;
+    padding: 6px 12px;
+    font-size: 12.5px;
+    font-weight: 500;
+    border: 1px solid var(--color-border-strong);
+    background: var(--color-surface);
+    color: var(--color-ink-700);
+    cursor: pointer;
+    transition: background-color 0.12s ease, border-color 0.12s ease;
+  }
+  .btn:hover {
+    background: var(--color-neutral-100);
+    border-color: var(--color-ink-400);
+  }
+  .btn-primary {
+    background: var(--color-brand-600);
+    border-color: var(--color-brand-600);
+    color: #ffffff;
+  }
+  .btn-primary:hover {
+    background: var(--color-brand-700);
+    border-color: var(--color-brand-700);
+  }
+  .btn-ghost {
+    background: transparent;
+    border-color: transparent;
+  }
+  .btn-ghost:hover {
+    background: var(--color-brand-50);
+    border-color: var(--color-brand-100);
+  }
+
+  .input-field {
+    width: 100%;
+    border: 1px solid var(--color-border-strong);
+    border-radius: 7px;
+    padding: 6px 9px;
+    font-size: 12.5px;
+    background-color: var(--color-surface);
+    color: var(--color-ink-900);
+    outline: none;
+  }
+  .input-field:focus {
+    border-color: var(--color-brand-500);
+    box-shadow: 0 0 0 3px var(--color-brand-100);
+  }
+  .input-field:disabled {
+    background-color: var(--color-neutral-100);
+    color: var(--color-ink-500);
+  }
+
+  .field-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-ink-700);
+  }
+
+  .table-modern {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .table-modern thead th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--color-ink-500);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+  }
+  .table-modern tbody th,
+  .table-modern tbody td {
+    padding: 8px 10px;
+    font-size: 12.5px;
+    border-bottom: 1px solid var(--color-border);
+    color: var(--color-ink-900);
+  }
+  .table-modern tbody tr:hover {
+    background-color: var(--color-brand-50);
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 10.5px;
+    font-weight: 700;
+    border: 1px solid transparent;
+  }
+  .badge-verde { background-color: var(--color-green-100); color: var(--color-green-600); }
+  .badge-amarelo { background-color: var(--color-amber-100); color: var(--color-amber-600); }
+  .badge-vermelho { background-color: var(--color-red-100); color: var(--color-red-600); }
+  .badge-neutro { background-color: var(--color-neutral-100); color: var(--color-neutral-600); }
+  .badge-critico { background-color: var(--color-critico-100); color: var(--color-critico-600); }
+
+  .status-rail-verde { border-left: 3px solid var(--color-green-600); }
+  .status-rail-amarelo { border-left: 3px solid var(--color-amber-600); }
+  .status-rail-vermelho { border-left: 3px solid var(--color-red-600); }
+  .status-rail-critico { border-left: 3px solid var(--color-critico-600); }
+  .status-rail-neutro { border-left: 3px solid var(--color-neutral-200); }
+
+  .page-title {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--color-ink-900);
+  }
+  .page-subtitle {
+    font-size: 12.5px;
+    color: var(--color-ink-500);
+  }
+
+  .stat-value {
+    font-family: "Cascadia Mono", Consolas, monospace;
+    font-weight: 700;
+  }
+  .stat-hero {
+    font-size: 12px;
+  }
+
+  .tile-urgent { background-color: var(--color-red-100); border-color: var(--color-red-600); }
+  a.tile-urgent:hover { border-color: var(--color-critico-600); }
+  .tile-calm { background-color: var(--color-green-100); border-color: var(--color-green-600); }
+
+  .meter {
+    display: flex;
+    width: 100%;
+    height: 8px;
+    border-radius: 999px;
+    overflow: hidden;
+    background-color: var(--color-neutral-100);
+  }
+  .meter-seg { height: 100%; }
+  .meter-seg-verde { background-color: var(--color-green-600); }
+  .meter-seg-amarelo { background-color: var(--color-amber-600); }
+  .meter-seg-vermelho { background-color: var(--color-red-600); }
+  .meter-seg-critico { background-color: var(--color-critico-600); }
+  .meter-seg-neutro { background-color: var(--color-neutral-200); }
+
+  .table-scroll { overflow-x: auto; }
+  .table-modern td.num, .table-modern th.num {
+    text-align: right;
+    font-family: "Cascadia Mono", Consolas, monospace;
+    white-space: nowrap;
+  }
+
+  .input-inline {
+    width: 84px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 3px 6px;
+    font-size: 12.5px;
+    text-align: right;
+    font-family: "Cascadia Mono", Consolas, monospace;
+    background-color: transparent;
+  }
+  .input-inline:hover {
+    border-color: var(--color-border-strong);
+    background-color: var(--color-surface);
+  }
+  .input-inline:focus {
+    border-color: var(--color-brand-500);
+    background-color: var(--color-surface);
+    box-shadow: 0 0 0 3px var(--color-brand-100);
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 32px 16px;
+    text-align: center;
+  }
+  .empty-state-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    background-color: var(--color-brand-50);
+    color: var(--color-brand-600);
+  }
+  .empty-state-title { font-weight: 700; font-size: 13.5px; color: var(--color-ink-900); }
+  .empty-state-text { font-size: 12.5px; color: var(--color-ink-500); max-width: 360px; }
+
+  .why-chain { display: flex; flex-direction: column; gap: 6px; }
+  .why-step {
+    display: grid;
+    grid-template-columns: 20px 1fr;
+    gap: 6px;
+  }
+  .why-dot {
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 999px;
+    background-color: var(--color-neutral-100);
+    color: var(--color-ink-500);
+    text-align: center;
+    line-height: 20px;
+    width: 20px;
+    height: 20px;
+  }
+  .why-step-filled .why-dot { background-color: var(--color-brand-600); color: #fff; }
+  .why-step-next .why-dot { border: 1px solid var(--color-brand-500); color: var(--color-brand-600); }
+  .why-step-pending { opacity: 0.55; }
+
+  .step-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: 999px;
+    background-color: var(--color-neutral-100);
+    padding: 3px 9px;
+    font-size: 11.5px;
+  }
+  .step-chip-done { background-color: var(--color-green-100); color: var(--color-green-600); }
+  .step-chip-active { background-color: var(--color-brand-100); color: var(--color-brand-700); }
+  .step-index { font-weight: 700; font-size: 10px; }
+
+  .section-hint { font-size: 11px; font-style: italic; color: var(--color-ink-500); }
+
+  /* Month-by-month status dot, the visual signature of the farol view. */
+  .farol-dot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 800;
+  }
+  .farol-dot-verde { background-color: var(--color-green-600); }
+  .farol-dot-amarelo { background-color: var(--color-amber-600); }
+  .farol-dot-vermelho { background-color: var(--color-red-600); }
+  .farol-dot-critico {
+    background-color: var(--color-critico-600);
+    background-image: repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.25) 0,
+      rgba(255, 255, 255, 0.25) 2px,
+      transparent 2px,
+      transparent 6px
+    );
+  }
+  .farol-dot-neutro {
+    background-color: var(--color-surface);
+    border: 1.5px solid var(--color-border-strong);
+    color: var(--color-ink-400);
+  }
+
+  .avatar-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    font-size: 9.5px;
+    font-weight: 800;
+    color: #ffffff;
+    flex-shrink: 0;
+  }
+
+  /* Loading-state placeholder (loading.tsx). A flat fill would just read as
+     an empty white box on the card's own white surface, so it shimmers. */
+  .skeleton {
+    display: block;
+    border-radius: 6px;
+    background: linear-gradient(
+      100deg,
+      var(--color-neutral-100) 30%,
+      var(--color-border) 50%,
+      var(--color-neutral-100) 70%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton {
+      animation: none;
+      background: var(--color-neutral-100);
+    }
+  }
+  @keyframes skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
 }
