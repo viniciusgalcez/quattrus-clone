@@ -11,6 +11,17 @@ indicadores que fecharam o mês fora da meta.
 O acesso é hierárquico: cada usuário enxerga os próprios indicadores e os de
 quem está abaixo dele na cadeia de gestão (ADMIN → GESTOR → COLABORADOR).
 
+## Funcionalidades
+
+- Dashboard com KPIs, metas, medições e indicadores de desempenho.
+- Desdobramento de KPIs em uma árvore de indicadores pai e filhos.
+- Cálculo de farol conforme a direção da meta e as faixas configuradas.
+- Controle de acesso por papel e hierarquia de gestores.
+- Importação de dados por CSV.
+- Planos de ação FCA para investigação de desvios.
+- Fechamento e reabertura de períodos com trilha de auditoria.
+- Health check da aplicação e do banco em `GET /api/health`.
+
 ## Stack
 
 | Camada        | Tecnologia                              |
@@ -21,6 +32,16 @@ quem está abaixo dele na cadeia de gestão (ADMIN → GESTOR → COLABORADOR).
 | Banco / ORM   | PostgreSQL 16 + Prisma 6                |
 | Testes        | Vitest                                  |
 | Deploy        | Docker multi-stage + docker compose     |
+
+## Estrutura do projeto
+
+```text
+src/app/          Páginas, layouts e rotas da aplicação
+src/components/   Componentes reutilizáveis da interface
+src/lib/          Regras de negócio, autenticação e ações do servidor
+prisma/           Schema, migrations e seed do banco
+public/           Arquivos estáticos
+```
 
 ## Pré-requisitos
 
