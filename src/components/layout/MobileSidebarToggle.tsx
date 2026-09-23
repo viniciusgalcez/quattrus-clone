@@ -10,7 +10,8 @@ export function MobileSidebarToggle({ children }: { children: React.ReactNode })
 
   // Close sidebar when navigating
   useEffect(() => {
-    setIsOpen(false);
+    const timeout = window.setTimeout(() => setIsOpen(false), 0);
+    return () => window.clearTimeout(timeout);
   }, [pathname]);
 
   return (

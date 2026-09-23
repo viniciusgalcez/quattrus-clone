@@ -134,6 +134,13 @@ describe("KPI Business Logic", () => {
       expect(getKpiStatus(-50, -55, "MORE", 10, 20)).toBe("AMARELO");
     });
 
+    it("uses blue only for a strictly better positive goal", () => {
+      expect(getKpiStatus(100, 120, "MORE", 10, 20)).toBe("VERDE");
+      expect(getKpiStatus(100, 121, "MORE", 10, 20)).toBe("AZUL");
+      expect(getKpiStatus(0, 5, "MORE", 10, 20)).toBe("VERDE");
+      expect(getKpiStatus(-50, -40, "MORE", 10, 20)).toBe("VERDE");
+    });
+
     it("falls back to the wider range when redRange is below yellowRange", () => {
       expect(getKpiStatus(100, 85, "MORE", 20, 10)).toBe("AMARELO");
       expect(getKpiStatus(100, 75, "MORE", 20, 10)).toBe("CRITICO");

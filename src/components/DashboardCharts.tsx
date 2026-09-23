@@ -44,7 +44,7 @@ const nfCompact = new Intl.NumberFormat("pt-BR", {
  * already know which series they want, they want the number. The delta line is
  * the question the chart actually exists to answer.
  */
-function ChartTooltip({ active, payload, label }: TooltipContentProps<any, any>) {
+function ChartTooltip({ active, payload, label }: TooltipContentProps) {
   if (!active || !payload?.length) return null;
 
   const previsto = payload.find((p) => p.dataKey === "Previsto")?.value;

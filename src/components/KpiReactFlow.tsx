@@ -11,6 +11,9 @@ import {
   MarkerType,
   Handle,
   Position,
+  type Edge,
+  type Node,
+  type NodeProps,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { KpiTreeNode } from "@/lib/kpi-tree";
@@ -18,7 +21,19 @@ import { STATUS_COLOR } from "@/lib/kpi";
 import { useRouter } from "next/navigation";
 
 // Custom node to render a KPI card
-function KpiNode({ data }: { data: any }) {
+type KpiNodeData = {
+ id: string;
+ name: string;
+ ownerName: string;
+ actual: number | null;
+ goal: number | null;
+ status: keyof typeof STATUS_COLOR;
+ onClick: (id: string) => void;
+};
+
+type KpiFlowNode = Node<KpiNodeData, "kpiNode">;
+
+function KpiNode({ data }: NodeProps<KpiFlowNode>) {
   const color = STATUS_COLOR[data.status as keyof typeof STATUS_COLOR] || "var(--color-ink-400)";
   return (
     <div
@@ -75,13 +90,14 @@ function layoutTree(
   xOffset = 0,
   yOffset = 0,
   onNodeClick: (id: string) => void
-): { elements: any[]; totalWidth: number } {
+): { flowNodes: KpiFlowNode[]; flowEdges: Edge[]; totalWidth: number } {
   const NODE_WIDTH = 260;
   const NODE_HEIGHT = 110;
   const GAP_X = 50;
   const GAP_Y = 80;
 
-  const elements: any[] = [];
+  const flowNodes: KpiFlowNode[] = [];
+  const flowEdges: Edge[] = [];
   let currentX = xOffset;
 
   for (const node of nodes) {
@@ -91,7 +107,8 @@ function layoutTree(
     let childrenWidth = 0;
     if (node.children && node.children.length > 0) {
       const childLayout = layoutTree(node.children, currentX, yOffset + NODE_HEIGHT + GAP_Y, onNodeClick);
-      elements.push(...childLayout.elements);
+      flowNodes.push(...childLayout.flowNodes);
+      flowEdges.push(...childLayout.flowEdges);
       childrenWidth = childLayout.totalWidth;
     }
 
@@ -100,7 +117,7 @@ function layoutTree(
     const nodeX = startX + (myWidth - NODE_WIDTH) / 2;
     const nodeY = yOffset;
 
-    elements.push({
+    flowNodes.push({
       id: node.id,
       type: "kpiNode",
       position: { x: nodeX, y: nodeY },
@@ -119,7 +136,7 @@ function layoutTree(
     if (node.children) {
       const nodeColor = STATUS_COLOR[node.status as keyof typeof STATUS_COLOR] || "var(--color-border-strong)";
       for (const child of node.children) {
-        elements.push({
+        flowEdges.push({
           id: `e-${node.id}-${child.id}`,
           source: node.id,
           target: child.id,
@@ -137,7 +154,7 @@ function layoutTree(
     currentX += myWidth + GAP_X;
   }
 
-  return { elements, totalWidth: currentX - xOffset - GAP_X };
+  return { flowNodes, flowEdges, totalWidth: currentX - xOffset - GAP_X };
 }
 
 export function KpiReactFlow({ tree }: { tree: KpiTreeNode[] }) {
@@ -152,13 +169,11 @@ export function KpiReactFlow({ tree }: { tree: KpiTreeNode[] }) {
 
   const { initialNodes, initialEdges } = useMemo(() => {
     const layout = layoutTree(tree, 0, 0, handleNodeClick);
-    const flowNodes = layout.elements.filter((el) => !el.source);
-    const flowEdges = layout.elements.filter((el) => el.source);
-    return { initialNodes: flowNodes, initialEdges: flowEdges };
+    return { initialNodes: layout.flowNodes, initialEdges: layout.flowEdges };
   }, [tree, handleNodeClick]);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, , onNodesChange] = useNodesState(initialNodes);
+  const [edges, , onEdgesChange] = useEdgesState(initialEdges);
 
   return (
     <div style={{ height: "70vh", width: "100%", background: "#f9fafb" }}>

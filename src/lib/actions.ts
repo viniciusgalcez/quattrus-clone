@@ -164,6 +164,7 @@ export async function upsertMeasurement(formData: FormData) {
     kpiId,
     goal: formData.get("goal"),
     actual: formData.get("actual"),
+    justification: formData.get("justification") || undefined,
   });
   if (!parsed.success) {
     throw new Error(Object.values(fieldErrorsFrom(parsed.error))[0] ?? "Valores inválidos.");

@@ -46,8 +46,9 @@ export function getKpiStatus(
   const deviation = getDeviationPct(goal, actual, direction);
   if (deviation === null) return "SEM_DADO";
   
-  // Bolinha Azul: Resultado muito acima da meta (>= 20% acima).
-  if (deviation >= 20) return "AZUL";
+  // A percentage above a zero or negative goal is not meaningful enough to
+  // distinguish "super meta"; keep those results in the normal green tier.
+  if (goal > 0 && deviation > 20) return "AZUL";
   if (deviation >= 0) return "VERDE";
   const gap = Math.abs(deviation);
   if (gap <= yellowRange) return "AMARELO";
