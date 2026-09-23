@@ -52,11 +52,11 @@ RUN chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# The standalone bundle does NOT include the Prisma CLI nor the migration
-# files, so copy what `prisma migrate deploy` needs at boot.
+# The standalone bundle does NOT include the Prisma CLI nor all of its
+# transitive runtime dependencies, so copy the installed dependency tree for
+# the migration step at boot.
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma/engines ./node_modules/@prisma/engines
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 # Entrypoint script: apply pending migrations, then exec the CMD.
 # `migrate deploy` is the only non-interactive, non-destructive migration
