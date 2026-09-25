@@ -2,33 +2,38 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
-import { updateUser } from "@/lib/actions";
+import { unlockUserAccount, updateUser } from "@/lib/actions";
 import { SubmitButton } from "@/components/SubmitButton";
 import { FieldError, FormError } from "@/components/FieldError";
 
 type Option = { id: string; name: string };
+type AccessProfileOption = Option & { type: string };
 type UserInfo = {
   id: string;
   name: string;
   role: string;
   managerId: string | null;
   departmentId: string | null;
+  accessProfileId: string | null;
 };
 
 export function EditarUsuarioForm({
   user,
   managers,
   departments,
+  profiles,
 }: {
   user: UserInfo;
   managers: Option[];
   departments: Option[];
+  profiles: AccessProfileOption[];
 }) {
   const updateUserWithId = updateUser.bind(null, user.id);
   const [state, formAction] = useActionState(updateUserWithId, null);
 
   return (
-    <form action={formAction} className="card flex flex-col gap-4 p-5">
+    <div className="flex flex-col gap-4">
+    <form noValidate action={formAction} className="card flex flex-col gap-4 p-5">
       <FormError message={state?.error} />
 
       <div className="flex flex-col gap-1.5">
@@ -44,6 +49,17 @@ export function EditarUsuarioForm({
           <option value="GESTOR">Gestor</option>
           <option value="ADMIN">Administrador</option>
         </select>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="field-label">Perfil de acesso</label>
+        <select name="accessProfileId" defaultValue={user.accessProfileId ?? ""} className="input-field">
+          <option value="">— usar apenas o papel institucional —</option>
+          {profiles.map((profile) => (
+            <option key={profile.id} value={profile.id}>{profile.name} ({profile.type.toLowerCase()})</option>
+          ))}
+        </select>
+        <FieldError message={state?.fieldErrors?.accessProfileId} />
       </div>
 
       <div className="flex flex-col gap-1.5">
@@ -85,6 +101,28 @@ export function EditarUsuarioForm({
         </Link>
         <SubmitButton>Salvar alterações</SubmitButton>
       </div>
+    </form>
+    <UnlockAccountButton userId={user.id} />
+    </div>
+  );
+}
+
+/** Clears failed-login lockout — separate action so it can't be triggered by accident when saving the rest of the form. */
+function UnlockAccountButton({ userId }: { userId: string }) {
+  return (
+    <form
+      noValidate
+      action={async () => {
+        await unlockUserAccount(userId);
+      }}
+      className="flex items-center justify-between gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3"
+    >
+      <p className="text-[11.5px] text-[var(--color-ink-500)]">
+        Limpa o limite de tentativas de login com falha para este usuário.
+      </p>
+      <button type="submit" className="btn shrink-0">
+        Desbloquear conta
+      </button>
     </form>
   );
 }

@@ -109,7 +109,7 @@ export function FCAForm({
         </span>
       </nav>
 
-      <form action={formAction} onInput={handleInput} className="flex flex-col gap-4">
+      <form noValidate action={formAction} onInput={handleInput} className="flex flex-col gap-4">
         <input type="hidden" name="measurementId" value={measurement.id} />
 
         <FormError message={state?.error} />
@@ -167,7 +167,7 @@ export function FCAForm({
               rows={2}
               defaultValue={plan?.fact ?? ""}
               placeholder="Ex.: refugo de tecelagem ficou 3,2 p.p. acima da meta em três semanas seguidas."
-              className="input-field"
+              className="input-field resize-none"
             />
             <FieldError message={state?.fieldErrors?.fact} />
           </div>
@@ -196,7 +196,6 @@ export function FCAForm({
               const value = progress.whys[i] ?? "";
               const isFilled = value !== "";
               const isNext = !isFilled && (firstEmptyWhy === i || firstEmptyWhy === -1);
-              const isPending = !isFilled && !isNext;
               const previous = i > 0 ? progress.whys[i - 1] : "";
 
               return (
@@ -235,7 +234,7 @@ export function FCAForm({
             })}
           </div>
 
-          <div className="flex flex-col gap-1 border border-[var(--color-border-strong)] bg-[#e6e6e6] p-2">
+          <div className="fca-evidence flex flex-col gap-1 border border-[var(--color-border-strong)] bg-[#e6e6e6] p-2">
             <label htmlFor="fca-root" className="field-label">
               Causa raiz — a conclusão da cadeia
             </label>
@@ -245,7 +244,7 @@ export function FCAForm({
               rows={2}
               defaultValue={plan?.rootCause ?? ""}
               placeholder="A última resposta que ainda está sob seu controle."
-              className="input-field"
+              className="input-field resize-none"
             />
           </div>
         </section>
@@ -342,7 +341,7 @@ export function FCAForm({
                 rows={2}
                 defaultValue={plan?.why ?? ""}
                 placeholder="Qual resultado essa ação deve produzir no indicador"
-                className="input-field"
+                className="input-field resize-none"
               />
             </div>
             <div className="col-span-1 flex flex-col gap-1 sm:col-span-2">
@@ -355,7 +354,7 @@ export function FCAForm({
                 rows={2}
                 defaultValue={plan?.how ?? ""}
                 placeholder="Os passos da execução"
-                className="input-field"
+                className="input-field resize-none"
               />
             </div>
           </div>
@@ -377,7 +376,7 @@ export function FCAForm({
               : "Este plano está concluído. Reabra se a causa voltar a se repetir."}
           </p>
           {plan.status === "ABERTO" ? (
-            <form
+            <form noValidate
               action={async () => {
                 await concludeActionPlan(plan.id);
               }}
@@ -391,7 +390,7 @@ export function FCAForm({
               </SubmitButton>
             </form>
           ) : (
-            <form
+            <form noValidate
               action={async () => {
                 await reopenActionPlan(plan.id);
               }}

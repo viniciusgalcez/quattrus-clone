@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Pencil, Plus, Target, AlertTriangle, TrendingUp, HelpCircle } from "lucide-react";
+import { Pencil, Plus, Target, AlertTriangle, TrendingUp, HelpCircle, Archive } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
@@ -12,18 +12,40 @@ import {
   STATUS_RAIL_CLASS,
 } from "@/lib/kpi";
 import { upsertMeasurement } from "@/lib/actions";
+import { findPeriodLock } from "@/lib/period-locks";
 import { SubmitButton } from "@/components/SubmitButton";
 import { EmptyState } from "@/components/EmptyState";
+import { PeriodLockControls } from "@/components/PeriodLockControls";
+import { assertPageModule } from "@/lib/module-access";
 
 export default async function MetasPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  assertPageModule(session.user, "measurements");
 
   const period = currentPeriod();
+  const periodLock = await findPeriodLock(period);
+  const cycleClosed = Boolean(periodLock);
+
+  // A delegate or a facilitator of the owner can edit here too (see
+  // lib/authz.ts's canEdit) — without folding them into this query, the
+  // permission existed but nothing ever surfaced the KPI for them to use it.
+  const facilitatedOwners = await prisma.facilitation.findMany({
+    where: { facilitatorId: session.user.id },
+    select: { facilitatedId: true },
+  });
+  const facilitatedOwnerIds = facilitatedOwners.map((f) => f.facilitatedId);
 
   const kpis = await prisma.kpi.findMany({
-    where: { ownerId: session.user.id, archivedAt: null },
-    include: { measurements: { where: { period } } },
+    where: {
+      archivedAt: null,
+      OR: [
+        { ownerId: session.user.id },
+        { delegations: { some: { delegateId: session.user.id } } },
+        ...(facilitatedOwnerIds.length > 0 ? [{ ownerId: { in: facilitatedOwnerIds } }] : []),
+      ],
+    },
+    include: { measurements: { where: { period } }, owner: { select: { name: true } } },
     orderBy: { priority: "asc" },
   });
 
@@ -62,10 +84,24 @@ export default async function MetasPage() {
             Ciclo de {periodLabel(period)} — acompanhe seus resultados e edite os valores.
           </p>
         </div>
-        <Link href="/metas/novo" className="btn btn-primary">
-          <Plus className="h-4 w-4" aria-hidden="true" /> Cadastrar meta
-        </Link>
+        <div className="flex items-center gap-2">
+          {session.user.role === "ADMIN" && (
+            <Link href="/metas/arquivados" className="btn">
+              <Archive className="h-4 w-4" aria-hidden="true" /> Arquivados
+            </Link>
+          )}
+          <Link href="/metas/novo" className="btn btn-primary">
+            <Plus className="h-4 w-4" aria-hidden="true" /> Cadastrar meta
+          </Link>
+        </div>
       </div>
+
+      {session.user.role === "ADMIN" && <PeriodLockControls period={period} lock={periodLock} />}
+      {cycleClosed && session.user.role !== "ADMIN" && (
+        <div className="card border-[var(--color-amber-300)] bg-[var(--color-amber-50)] p-3 text-[12px] text-[var(--color-amber-800)]">
+          Este ciclo está fechado para lançamentos. Consulte um administrador caso seja necessário reabrir o período.
+        </div>
+      )}
 
       {total > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
@@ -186,7 +222,10 @@ export default async function MetasPage() {
                       >
                         {kpi.name}
                       </Link>
-                      <div className="text-[11px] text-[var(--color-ink-400)]">{kpi.metricUnit}</div>
+                      <div className="text-[11px] text-[var(--color-ink-400)]">
+                        {kpi.metricUnit}
+                        {kpi.ownerId !== session.user.id && ` · ${kpi.owner.name}`}
+                      </div>
                     </th>
 
                     <td className="num">
@@ -198,6 +237,7 @@ export default async function MetasPage() {
                         aria-label={`Previsto de ${kpi.name} (${kpi.metricUnit})`}
                         defaultValue={measurement?.goal ?? 0}
                         className="input-inline"
+                        disabled={cycleClosed}
                       />
                       {measurement?.goalApprovalStatus === "PENDENTE" && (
                         <div className="mt-0.5 text-[10px] font-semibold text-[var(--color-amber-600)]">
@@ -216,6 +256,7 @@ export default async function MetasPage() {
                         defaultValue={measurement?.actual ?? ""}
                         placeholder="—"
                         className="input-inline"
+                        disabled={cycleClosed}
                       />
                     </td>
 
@@ -233,7 +274,7 @@ export default async function MetasPage() {
                             Abrir FCA
                           </Link>
                         )}
-                        <form id={formId} action={upsertMeasurement}>
+                        <form noValidate id={formId} action={upsertMeasurement}>
                           <input type="hidden" name="kpiId" value={kpi.id} />
                           <SubmitButton
                             className="btn text-[11px]"

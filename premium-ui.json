@@ -1,0 +1,16 @@
+{
+  "profile": "product-admin",
+  "sourceRoots": ["src"],
+  "locale": "pt-BR",
+  "canonicalMap": "UX-CONTRACT.md",
+  "requiredCapabilities": ["Select/Listbox", "Date", "Form", "Scrollbar", "Toast", "CRUD"],
+  "ownership": {
+    "Select/Listbox": "native",
+    "Date": "native"
+  },
+  "evidence": {
+    "designContext": "DESIGN.md",
+    "uxContract": "UX-CONTRACT.md",
+    "runtimeTokens": "src/app/globals.css"
+  }
+}

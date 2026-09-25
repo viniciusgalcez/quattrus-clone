@@ -4,10 +4,12 @@ import { LayoutGrid } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { exportableOwnerIds } from "@/lib/hierarchy";
-import { availableYears } from "@/lib/farol";
+import { availableYears, visibleMonthIndexes } from "@/lib/farol";
+import { currentPeriod } from "@/lib/kpi";
 import { buildFarolTree } from "@/lib/farol-tree";
 import { FarolTreeGrid } from "@/components/FarolTreeGrid";
 import { EmptyState } from "@/components/EmptyState";
+import { assertPageModule } from "@/lib/module-access";
 
 export default async function FarolPage({
   searchParams,
@@ -16,6 +18,7 @@ export default async function FarolPage({
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  assertPageModule(session.user, "dashboard");
 
   const { ano } = await searchParams;
 
@@ -31,14 +34,35 @@ export default async function FarolPage({
   // instead of switching between separate per-person panels.
   const ownerIds = await exportableOwnerIds(session.user);
 
-  const [tree, allPeriods] = await Promise.all([
-    buildFarolTree(ownerIds, year),
+  const [delegations, facilitated, allPeriods, preference] = await Promise.all([
+    prisma.kpiDelegation.findMany({ where: { delegateId: session.user.id }, select: { kpiId: true } }),
+    prisma.facilitation.findMany({ where: { facilitatorId: session.user.id }, select: { facilitatedId: true } }),
     prisma.measurement.findMany({
       where: { kpi: { ownerId: { in: ownerIds } } },
       select: { period: true },
       distinct: ["period"],
     }),
+    prisma.userPreference.findUnique({
+      where: { userId: session.user.id },
+      select: { dashboardMonths: true, blankMonths: true, basePeriod: true, showDelegated: true },
+    }),
   ]);
+  const delegatedKpiIds = (preference?.showDelegated ?? true) ? delegations.map((delegation) => delegation.kpiId) : [];
+  const facilitatedOwnerIds = facilitated.map((relation) => relation.facilitatedId);
+  const editableKpiIds = session.user.role === "ADMIN"
+    ? (await prisma.kpi.findMany({ where: { archivedAt: null }, select: { id: true } })).map((kpi) => kpi.id)
+    : [
+        ...(await prisma.kpi.findMany({ where: { archivedAt: null, ownerId: { in: [session.user.id, ...facilitatedOwnerIds] } }, select: { id: true } })).map((kpi) => kpi.id),
+        ...delegatedKpiIds,
+      ];
+  const monthIndexes = visibleMonthIndexes({
+    year,
+    dashboardMonths: preference?.dashboardMonths ?? 12,
+    blankMonths: preference?.blankMonths ?? 0,
+    basePeriod: preference?.basePeriod,
+    fallbackPeriod: currentPeriod(),
+  });
+  const tree = await buildFarolTree([...ownerIds, ...facilitatedOwnerIds], year, delegatedKpiIds);
 
   const years = availableYears(
     allPeriods.map((p) => p.period),
@@ -80,7 +104,13 @@ export default async function FarolPage({
         </div>
       ) : (
         <div className="card overflow-hidden">
-          <FarolTreeGrid rows={tree} year={year} />
+          <FarolTreeGrid
+            rows={tree}
+            year={year}
+            currentPeriod={currentPeriod()}
+            editableKpiIds={[...new Set(editableKpiIds)]}
+            visibleMonthIndexes={monthIndexes}
+          />
         </div>
       )}
     </div>

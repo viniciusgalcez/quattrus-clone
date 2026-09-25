@@ -8,6 +8,8 @@ import { MONTH_LABELS, summarizeRow } from "@/lib/farol";
 import type { FarolTreeNode } from "@/lib/farol-tree";
 import { ownerInitials, ownerColor } from "@/lib/avatar";
 import { KpiChartModal } from "@/components/KpiChartModal";
+import { MeasurementQuickEditModal } from "@/components/MeasurementQuickEditModal";
+import { KpiRowMenu } from "@/components/KpiRowMenu";
 
 const nf = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
 
@@ -30,9 +32,25 @@ const DOT_GLYPH: Partial<Record<KpiStatus, string>> = {
  * a manager can tell at a glance whose item they're looking at inside their
  * own rollup.
  */
-export function FarolTreeGrid({ rows, year }: { rows: FarolTreeNode[]; year: number }) {
+export function FarolTreeGrid({
+  rows,
+  year,
+  currentPeriod,
+  editableKpiIds,
+  visibleMonthIndexes,
+}: {
+  rows: FarolTreeNode[];
+  year: number;
+  /** "YYYY-MM" of the editable month — only this period can be launched from the grid. */
+  currentPeriod: string;
+  editableKpiIds: string[];
+  visibleMonthIndexes: number[];
+}) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [chartNode, setChartNode] = useState<FarolTreeNode | null>(null);
+  const [editCell, setEditCell] = useState<{ node: FarolTreeNode; cell: FarolTreeNode["cells"][number] } | null>(
+    null
+  );
 
   function toggle(id: string) {
     setCollapsed((prev) => {
@@ -44,6 +62,7 @@ export function FarolTreeGrid({ rows, year }: { rows: FarolTreeNode[]; year: num
   }
 
   function renderNode(node: FarolTreeNode, depth: number): React.ReactNode[] {
+    const visibleCells = visibleMonthIndexes.map((index) => node.cells[index]).filter(Boolean);
     const counts = summarizeRow({ kpiId: node.kpiId, name: node.name, metricUnit: node.metricUnit, ownerName: node.ownerName, cells: node.cells });
     const measured = 12 - counts.SEM_DADO;
     const onTarget = counts.VERDE;
@@ -102,16 +121,27 @@ export function FarolTreeGrid({ rows, year }: { rows: FarolTreeNode[]; year: num
           </div>
         </th>
 
-        {node.cells.map((cell) => {
+        {visibleCells.map((cell) => {
           const hasData = cell.status !== "SEM_DADO";
           const label = `${node.name}, ${cell.monthLabel} de ${year}: ${STATUS_LABEL[cell.status]}${
             hasData ? `, realizado ${nf.format(cell.actual ?? 0)} de ${nf.format(cell.goal ?? 0)}` : ""
           }`;
           const content = <span className={DOT_CLASS[cell.status]}>{DOT_GLYPH[cell.status] ?? ""}</span>;
+          const isEditableMonth = cell.period === currentPeriod && editableKpiIds.includes(node.kpiId);
 
           return (
             <td key={cell.period} className="!px-1.5 text-center">
-              {cell.measurementId ? (
+              {isEditableMonth ? (
+                <button
+                  type="button"
+                  onClick={() => setEditCell({ node, cell })}
+                  aria-label={`Lançar medição — ${label}`}
+                  title={`Lançar medição — ${label}`}
+                  className="inline-flex rounded-full border-0 bg-transparent p-0 leading-none ring-offset-1 hover:ring-2 hover:ring-[var(--color-brand-500)] focus-visible:outline-2"
+                >
+                  {content}
+                </button>
+              ) : cell.measurementId ? (
                 <Link
                   href={`/fca/${cell.measurementId}`}
                   aria-label={label}
@@ -150,6 +180,10 @@ export function FarolTreeGrid({ rows, year }: { rows: FarolTreeNode[]; year: num
             <span className="text-[11px] text-[var(--color-ink-400)]">—</span>
           )}
         </td>
+
+        <td className="text-center">
+          <KpiRowMenu kpiId={node.kpiId} canEdit={editableKpiIds.includes(node.kpiId)} />
+        </td>
       </tr>
     );
 
@@ -169,7 +203,7 @@ export function FarolTreeGrid({ rows, year }: { rows: FarolTreeNode[]; year: num
               <th scope="col" className="min-w-[240px]">
                 Indicador
               </th>
-              {MONTH_LABELS.map((label) => (
+              {visibleMonthIndexes.map((index) => MONTH_LABELS[index]).map((label) => (
                 <th key={label} scope="col" className="!px-1.5 text-center">
                   {label}
                 </th>
@@ -179,6 +213,9 @@ export function FarolTreeGrid({ rows, year }: { rows: FarolTreeNode[]; year: num
               </th>
               <th scope="col" className="text-center">
                 Meta
+              </th>
+              <th scope="col" className="text-center">
+                <span className="sr-only">Ações</span>
               </th>
             </tr>
           </thead>
@@ -192,6 +229,18 @@ export function FarolTreeGrid({ rows, year }: { rows: FarolTreeNode[]; year: num
           metricUnit={chartNode.metricUnit}
           data={chartNode.bandData}
           onClose={() => setChartNode(null)}
+        />
+      )}
+
+      {editCell && (
+        <MeasurementQuickEditModal
+          kpiId={editCell.node.kpiId}
+          name={editCell.node.name}
+          metricUnit={editCell.node.metricUnit}
+          monthLabel={editCell.cell.monthLabel}
+          goal={editCell.cell.goal}
+          actual={editCell.cell.actual}
+          onClose={() => setEditCell(null)}
         />
       )}
     </>

@@ -3,18 +3,20 @@ import { redirect, notFound } from "next/navigation";
 import { ArrowRight, Users } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { assertPageModule } from "@/lib/module-access";
 import { getKpiStatus, currentPeriod, periodLabel, STATUS_BADGE_CLASS, STATUS_LABEL } from "@/lib/kpi";
 import { EmptyState } from "@/components/EmptyState";
 
 export default async function EquipePage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  assertPageModule(session.user, "dashboard");
   if (session.user.role !== "GESTOR" && session.user.role !== "ADMIN") notFound();
 
   const period = currentPeriod();
 
   const reports = await prisma.user.findMany({
-    where: { managerId: session.user.id },
+    where: { subordinationsAsUser: { some: { managerId: session.user.id } } },
     include: {
       kpis: { where: { archivedAt: null }, include: { measurements: { where: { period } } } },
       _count: { select: { reports: true } },
@@ -112,4 +114,3 @@ export default async function EquipePage() {
     </div>
   );
 }
-

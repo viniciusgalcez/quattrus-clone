@@ -6,10 +6,14 @@ import { prisma } from "@/lib/prisma";
 import { currentPeriod, getKpiStatus, periodLabel, STATUS_BADGE_CLASS, STATUS_LABEL, type KpiStatus } from "@/lib/kpi";
 import { getSubordinateIds } from "@/lib/hierarchy";
 import { EmptyState } from "@/components/EmptyState";
+import { NovoDepartamentoForm } from "@/components/NovoDepartamentoForm";
+import { DeleteDepartmentButton } from "@/components/DeleteDepartmentButton";
+import { assertPageModule } from "@/lib/module-access";
 
 export default async function DepartamentosPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  assertPageModule(session.user, "departments");
   if (session.user.role !== "GESTOR" && session.user.role !== "ADMIN") notFound();
 
   const period = currentPeriod();
@@ -47,6 +51,8 @@ export default async function DepartamentosPage() {
           Desempenho consolidado por área — {periodLabel(period)}.
         </p>
       </div>
+
+      {isAdmin && <NovoDepartamentoForm />}
 
       {departments.length === 0 && (
         <div className="card">
@@ -86,9 +92,14 @@ export default async function DepartamentosPage() {
             <div key={dept.id} className="card flex flex-col gap-3 p-5">
               <div className="flex items-start justify-between">
                 <div>
-                  <h2 className="font-display text-[15px] font-bold text-[var(--color-ink-900)]">
-                    {dept.name}
-                  </h2>
+                  <div className="flex items-center gap-1.5">
+                    <h2 className="font-display text-[15px] font-bold text-[var(--color-ink-900)]">
+                      {dept.name}
+                    </h2>
+                    {isAdmin && (
+                      <DeleteDepartmentButton departmentId={dept.id} peopleCount={dept.users.length} />
+                    )}
+                  </div>
                   <p className="text-[11.5px] text-[var(--color-ink-400)]">
                     {dept.users.length} pessoa(s) · {total} indicador(es)
                   </p>

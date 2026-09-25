@@ -1,0 +1,5 @@
+ALTER TABLE "UserPreference" ADD COLUMN "dashboardMonths" INTEGER NOT NULL DEFAULT 12;
+ALTER TABLE "UserPreference" ADD COLUMN "blankMonths" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "UserPreference" ADD COLUMN "basePeriod" TEXT;
+ALTER TABLE "UserPreference" ADD COLUMN "showDelegated" BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE "UserPreference" ADD COLUMN "showTeamReds" BOOLEAN NOT NULL DEFAULT true;

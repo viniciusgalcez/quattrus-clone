@@ -11,15 +11,28 @@ import {
   MarkerType,
   Handle,
   Position,
+  type Edge,
+  type Node,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { KpiTreeNode } from "@/lib/kpi-tree";
 import { STATUS_COLOR } from "@/lib/kpi";
 import { useRouter } from "next/navigation";
 
-// Custom node to render a KPI card
-function KpiNode({ data }: { data: any }) {
-  const color = STATUS_COLOR[data.status as keyof typeof STATUS_COLOR] || "var(--color-ink-400)";
+type KpiNodeData = {
+  id: string;
+  name: string;
+  ownerName: string;
+  actual: number | null;
+  goal: number | null;
+  status: KpiTreeNode["status"];
+  onClick: (id: string) => void;
+};
+
+type KpiFlowNode = Node<KpiNodeData, "kpiNode">;
+
+function KpiNode({ data }: { data: KpiNodeData }) {
+  const color = STATUS_COLOR[data.status] || "var(--color-ink-400)";
   return (
     <div
       className="group relative flex flex-col justify-between cursor-pointer bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 hover:border-[var(--color-brand-500)]"
@@ -75,13 +88,14 @@ function layoutTree(
   xOffset = 0,
   yOffset = 0,
   onNodeClick: (id: string) => void
-): { elements: any[]; totalWidth: number } {
+): { nodes: KpiFlowNode[]; edges: Edge[]; totalWidth: number } {
   const NODE_WIDTH = 260;
   const NODE_HEIGHT = 110;
   const GAP_X = 50;
   const GAP_Y = 80;
 
-  const elements: any[] = [];
+  const flowNodes: KpiFlowNode[] = [];
+  const edges: Edge[] = [];
   let currentX = xOffset;
 
   for (const node of nodes) {
@@ -91,7 +105,8 @@ function layoutTree(
     let childrenWidth = 0;
     if (node.children && node.children.length > 0) {
       const childLayout = layoutTree(node.children, currentX, yOffset + NODE_HEIGHT + GAP_Y, onNodeClick);
-      elements.push(...childLayout.elements);
+      flowNodes.push(...childLayout.nodes);
+      edges.push(...childLayout.edges);
       childrenWidth = childLayout.totalWidth;
     }
 
@@ -100,7 +115,7 @@ function layoutTree(
     const nodeX = startX + (myWidth - NODE_WIDTH) / 2;
     const nodeY = yOffset;
 
-    elements.push({
+    flowNodes.push({
       id: node.id,
       type: "kpiNode",
       position: { x: nodeX, y: nodeY },
@@ -117,9 +132,9 @@ function layoutTree(
 
     // Add edges to children
     if (node.children) {
-      const nodeColor = STATUS_COLOR[node.status as keyof typeof STATUS_COLOR] || "var(--color-border-strong)";
+      const nodeColor = STATUS_COLOR[node.status] || "var(--color-border-strong)";
       for (const child of node.children) {
-        elements.push({
+        edges.push({
           id: `e-${node.id}-${child.id}`,
           source: node.id,
           target: child.id,
@@ -137,7 +152,7 @@ function layoutTree(
     currentX += myWidth + GAP_X;
   }
 
-  return { elements, totalWidth: currentX - xOffset - GAP_X };
+  return { nodes: flowNodes, edges, totalWidth: currentX - xOffset - GAP_X };
 }
 
 export function KpiReactFlow({ tree }: { tree: KpiTreeNode[] }) {
@@ -152,16 +167,14 @@ export function KpiReactFlow({ tree }: { tree: KpiTreeNode[] }) {
 
   const { initialNodes, initialEdges } = useMemo(() => {
     const layout = layoutTree(tree, 0, 0, handleNodeClick);
-    const flowNodes = layout.elements.filter((el) => !el.source);
-    const flowEdges = layout.elements.filter((el) => el.source);
-    return { initialNodes: flowNodes, initialEdges: flowEdges };
+    return { initialNodes: layout.nodes, initialEdges: layout.edges };
   }, [tree, handleNodeClick]);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, , onNodesChange] = useNodesState(initialNodes);
+  const [edges, , onEdgesChange] = useEdgesState(initialEdges);
 
   return (
-    <div style={{ height: "70vh", width: "100%", background: "#f9fafb" }}>
+    <div className="kpi-flow-canvas" style={{ height: "70vh", width: "100%" }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -173,7 +186,7 @@ export function KpiReactFlow({ tree }: { tree: KpiTreeNode[] }) {
       >
         <Background color="#e5e7eb" gap={16} />
         <Controls />
-        <MiniMap zoomable pannable nodeColor={(n) => "#cbd5e1"} />
+        <MiniMap zoomable pannable nodeColor={() => "#cbd5e1"} />
       </ReactFlow>
     </div>
   );

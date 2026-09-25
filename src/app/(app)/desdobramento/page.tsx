@@ -1,6 +1,7 @@
 ﻿import { redirect } from "next/navigation";
 import { Network } from "lucide-react";
 import { auth } from "@/lib/auth";
+import { assertPageModule } from "@/lib/module-access";
 import { currentPeriod, periodLabel } from "@/lib/kpi";
 import { getSubordinateIds } from "@/lib/hierarchy";
 import { buildKpiTree } from "@/lib/kpi-tree";
@@ -10,6 +11,7 @@ import { EmptyState } from "@/components/EmptyState";
 export default async function DesdobramentoPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  assertPageModule(session.user, "dashboard");
 
   const period = currentPeriod();
   const subordinates = await getSubordinateIds(session.user.id);

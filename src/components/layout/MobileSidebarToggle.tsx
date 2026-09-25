@@ -1,43 +1,58 @@
 ﻿"use client";
 
 import { Menu, X } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 export function MobileSidebarToggle({ children }: { children: React.ReactNode }) {
-  const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
+  const [openPathname, setOpenPathname] = useState<string | null>(null);
+  const isOpen = openPathname === pathname;
 
-  // Close sidebar when navigating
+  const closeSidebar = () => setOpenPathname(null);
+
   useEffect(() => {
-    setIsOpen(false);
-  }, [pathname]);
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeSidebar();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen]);
 
   return (
     <>
       <button
-        onClick={() => setIsOpen(true)}
-        className="md:hidden flex h-8 w-8 items-center justify-center rounded-md text-[var(--color-ink-400)] hover:bg-[var(--color-neutral-100)]"
+        onClick={() => setOpenPathname(pathname)}
+        className="flex h-10 w-10 items-center justify-center rounded-md text-white/80 transition-colors hover:bg-white/10 hover:text-white md:hidden"
+        aria-label="Abrir navegação"
+        aria-expanded={isOpen}
+        aria-controls="mobile-navigation"
       >
         <Menu className="h-5 w-5" />
       </button>
 
       {isOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden">
-          <div 
-            className="fixed inset-0 bg-black/50" 
-            onClick={() => setIsOpen(false)} 
+          <button
+            type="button"
+            className="fixed inset-0 bg-black/50"
+            onClick={closeSidebar}
+            aria-label="Fechar navegação"
           />
-          <div className="relative z-50 flex h-full w-[240px] flex-col bg-[var(--color-surface)]">
+          {/* No fixed width/background here — the Sidebar itself already
+              carries its own width and navy background; wrapping it in a
+              differently-colored, differently-sized box was what produced
+              the white gap above the drawer. */}
+          <div id="mobile-navigation" role="dialog" aria-modal="true" aria-label="Navegação principal" className="relative z-50 h-full">
             <button
-              onClick={() => setIsOpen(false)}
-              className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-md text-[var(--color-ink-400)] hover:bg-[var(--color-neutral-100)]"
+              onClick={closeSidebar}
+              className="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-md text-white/60 hover:bg-white/10 hover:text-white"
+              aria-label="Fechar navegação"
             >
               <X className="h-5 w-5" />
             </button>
-            <div className="flex-1 overflow-y-auto mt-14">
-              {children}
-            </div>
+            {children}
           </div>
         </div>
       )}

@@ -1,23 +1,31 @@
 @import "tailwindcss";
 
 :root {
-  --color-bg: #eef2f4;
+  --color-bg: #f3f6f8;
   --color-surface: #ffffff;
+  --color-surface-muted: #f7fafc;
+  --color-surface-elevated: #ffffff;
   --color-border: #dfe4e8;
   --color-border-strong: #c7ced4;
+  --color-shadow: rgba(15, 43, 51, 0.06);
+  --color-shadow-strong: rgba(15, 43, 51, 0.12);
+  --color-scrollbar-track: #e8eef3;
+  --color-scrollbar-thumb: #a7b8c8;
+  --color-scrollbar-thumb-hover: #7c93a9;
 
   --color-ink-900: #172431;
   --color-ink-700: #33465a;
   --color-ink-500: #64758a;
   --color-ink-400: #93a3b3;
 
-  /* Teal/navy, matching the Quattrus | Gestiona chrome. */
-  --color-brand-900: #0b2a33;
-  --color-brand-700: #0f6b74;
-  --color-brand-600: #128a94;
-  --color-brand-500: #16a3ae;
-  --color-brand-100: #d5f0f1;
-  --color-brand-50: #eefaf9;
+  /* Capricórnio blue — matches the "80 anos" brand art (login-brand.png). */
+  --color-brand-900: #0a2c6b;
+  --color-header: #0a2c6b;
+  --color-brand-700: #0d3b91;
+  --color-brand-600: #1e56c7;
+  --color-brand-500: #4b82e8;
+  --color-brand-100: #dce7fb;
+  --color-brand-50: #eff5fe;
 
   --color-navy-900: #0d1626;
   --color-navy-800: #121e33;
@@ -25,6 +33,9 @@
 
   --color-accent-600: #cc3300;
   --color-accent-100: #ffcccc;
+
+  --color-cyan-600: #087f91;
+  --color-cyan-100: #d9f4f6;
 
   --color-green-600: #1c9a5b;
   --color-green-100: #dcf5e7;
@@ -39,8 +50,55 @@
   --color-neutral-100: #eef2f4;
 
   --chart-previsto: #8a99a8;
-  --chart-realizado: #0f6b74;
+  --chart-realizado: #4338ca;
   --chart-grid: #e3e8ec;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: #0d1620;
+  --color-surface: #142230;
+  --color-surface-muted: #101d2a;
+  --color-surface-elevated: #1a2a3a;
+  --color-border: #2a3e52;
+  --color-border-strong: #405a73;
+  --color-shadow: rgba(0, 0, 0, 0.24);
+  --color-shadow-strong: rgba(0, 0, 0, 0.38);
+  --color-scrollbar-track: #101b28;
+  --color-scrollbar-thumb: #3d5871;
+  --color-scrollbar-thumb-hover: #577793;
+  --color-ink-900: #f1f6fb;
+  --color-ink-700: #c6d5e3;
+  --color-ink-500: #91a8bd;
+  --color-ink-400: #6f879e;
+  --color-brand-900: #cfe0ff;
+  --color-header: #0c1927;
+  --color-brand-700: #9fc1ff;
+  --color-brand-600: #6e9eff;
+  --color-brand-500: #8db4ff;
+  --color-brand-100: #203b64;
+  --color-brand-50: #1a304d;
+  --color-navy-900: #09131e;
+  --color-navy-800: #0e1b2a;
+  --color-navy-700: #172a40;
+  --color-accent-600: #ff876d;
+  --color-accent-100: #542d2a;
+  --color-cyan-600: #59c8d5;
+  --color-cyan-100: #19434b;
+  --color-green-600: #65d99c;
+  --color-green-100: #1c4b36;
+  --color-amber-600: #f6c861;
+  --color-amber-100: #55451f;
+  --color-red-600: #ff8585;
+  --color-red-100: #572d35;
+  --color-critico-600: #ff9aa5;
+  --color-critico-100: #552b35;
+  --color-neutral-600: #91a4b8;
+  --color-neutral-200: #2b3a4c;
+  --color-neutral-100: #223142;
+  --chart-previsto: #9aaabd;
+  --chart-realizado: #8f8aff;
+  --chart-grid: #304052;
 }
 
 @layer base {
@@ -49,6 +107,8 @@
   }
   html {
     background-color: var(--color-bg);
+    scrollbar-color: var(--color-scrollbar-thumb) var(--color-scrollbar-track);
+    scrollbar-width: thin;
   }
   body {
     background-color: var(--color-bg);
@@ -56,6 +116,20 @@
     font-family: "Segoe UI", ui-sans-serif, system-ui, Arial, sans-serif;
     font-size: 13px;
     -webkit-font-smoothing: antialiased;
+  }
+  [data-theme="dark"] .bg-white,
+  [data-theme="dark"] .bg-\[\#fbfcfd\],
+  [data-theme="dark"] .bg-\[\#f7fafc\] {
+    background-color: var(--color-surface);
+  }
+  [data-theme="dark"] .bg-blue-50\/50 {
+    background-color: var(--color-brand-50);
+  }
+  [data-theme="dark"] .bg-\[\#e6e6e6\] {
+    background-color: var(--color-neutral-100);
+  }
+  [data-theme="dark"] .text-white {
+    color: #ffffff;
   }
   h1, h2, h3, .font-display {
     font-family: "Segoe UI Semibold", "Segoe UI", ui-sans-serif, system-ui, Arial, sans-serif;
@@ -67,22 +141,50 @@
   }
   :focus-visible {
     outline: 2px solid var(--color-brand-500);
-    outline-offset: 1px;
+    outline-offset: 2px;
   }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-track { background: var(--color-scrollbar-track); }
+  *::-webkit-scrollbar-thumb { background: var(--color-scrollbar-thumb); border: 2px solid var(--color-scrollbar-track); border-radius: 999px; }
+  *::-webkit-scrollbar-thumb:hover { background: var(--color-scrollbar-thumb-hover); }
 }
 
 @layer components {
   .card {
+    min-width: 0;
     background-color: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: 10px;
-    box-shadow: 0 1px 2px rgba(15, 43, 51, 0.04);
+    box-shadow: 0 1px 2px var(--color-shadow), 0 10px 24px color-mix(in srgb, var(--color-shadow) 45%, transparent);
+    transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  }
+  .card:hover {
+    border-color: var(--color-border-strong);
+    box-shadow: 0 6px 20px var(--color-shadow);
+  }
+
+  /* Triggered by JumpToSection on click (see that component) — gives visible
+     feedback even when the target is already on screen and there's nothing
+     to scroll to, or the same link is clicked twice in a row. */
+  .flash-target {
+    animation: target-flash 1.6s ease-out;
+  }
+
+  @keyframes target-flash {
+    0% {
+      box-shadow: 0 0 0 3px var(--color-brand-500);
+    }
+    100% {
+      box-shadow: 0 1px 2px rgba(15, 43, 51, 0.04);
+    }
   }
 
   .card-header {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
+    gap: 6px 12px;
     padding: 10px 14px;
     border-bottom: 1px solid var(--color-border);
     background-color: var(--color-surface);
@@ -97,6 +199,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    max-width: 100%;
     gap: 5px;
     border-radius: 7px;
     padding: 6px 12px;
@@ -106,11 +209,12 @@
     background: var(--color-surface);
     color: var(--color-ink-700);
     cursor: pointer;
-    transition: background-color 0.12s ease, border-color 0.12s ease;
+    transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
   }
   .btn:hover {
-    background: var(--color-neutral-100);
+    background: var(--color-surface-elevated);
     border-color: var(--color-ink-400);
+    transform: translateY(-1px);
   }
   .btn-primary {
     background: var(--color-brand-600);
@@ -120,6 +224,7 @@
   .btn-primary:hover {
     background: var(--color-brand-700);
     border-color: var(--color-brand-700);
+    box-shadow: 0 5px 12px color-mix(in srgb, var(--color-brand-600) 30%, transparent);
   }
   .btn-ghost {
     background: transparent;
@@ -136,7 +241,7 @@
     border-radius: 7px;
     padding: 6px 9px;
     font-size: 12.5px;
-    background-color: var(--color-surface);
+    background-color: var(--color-surface-elevated);
     color: var(--color-ink-900);
     outline: none;
   }
@@ -148,6 +253,7 @@
     background-color: var(--color-neutral-100);
     color: var(--color-ink-500);
   }
+  .input-field option { background-color: var(--color-surface); color: var(--color-ink-900); }
 
   .field-label {
     font-size: 12px;
@@ -176,6 +282,9 @@
     font-size: 12.5px;
     border-bottom: 1px solid var(--color-border);
     color: var(--color-ink-900);
+  }
+  .table-modern tbody th {
+    text-align: left;
   }
   .table-modern tbody tr:hover {
     background-color: var(--color-brand-50);
@@ -212,6 +321,109 @@
     color: var(--color-ink-500);
   }
 
+  .app-main {
+    width: 100%;
+    max-width: 100%;
+    padding: 12px;
+    scroll-padding-block: 16px;
+  }
+  @media (min-width: 640px) {
+    .app-main {
+      padding: 24px;
+    }
+  }
+
+  .dashboard-hero {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #cbd9e7;
+    border-radius: 10px;
+    background: #eaf2fb;
+    box-shadow: 0 6px 18px rgba(13, 59, 145, 0.06);
+  }
+  .dashboard-hero::after {
+    content: "";
+    position: absolute;
+    right: -40px;
+    top: -55px;
+    width: 190px;
+    height: 190px;
+    border: 1px solid rgba(30, 86, 199, 0.14);
+    border-radius: 50%;
+    box-shadow: 0 0 0 22px rgba(30, 86, 199, 0.035), 0 0 0 44px rgba(30, 86, 199, 0.025);
+    pointer-events: none;
+  }
+  [data-theme="dark"] .dashboard-hero {
+    border-color: var(--color-border);
+    background: #132b45;
+    box-shadow: 0 6px 18px var(--color-shadow);
+  }
+  [data-theme="dark"] .dashboard-hero::after {
+    border-color: rgba(141, 180, 255, 0.28);
+    box-shadow: 0 0 0 22px rgba(141, 180, 255, 0.07), 0 0 0 44px rgba(141, 180, 255, 0.04);
+  }
+  [data-theme="dark"] .dashboard-back-link {
+    border-color: var(--color-border-strong);
+    background: color-mix(in srgb, var(--color-surface-elevated) 88%, transparent);
+  }
+  [data-theme="dark"] .dashboard-chart .recharts-cartesian-grid-horizontal line {
+    stroke: var(--chart-grid);
+  }
+  [data-theme="dark"] .dashboard-chart .recharts-cartesian-axis-tick-value {
+    fill: var(--color-ink-500);
+  }
+  [data-theme="dark"] .dashboard-chart .recharts-legend-item-text {
+    color: var(--color-ink-700) !important;
+  }
+  [data-theme="dark"] .fca-evidence {
+    background-color: var(--color-neutral-100);
+  }
+  .kpi-flow-canvas {
+    background-color: var(--color-bg);
+  }
+  .dashboard-kicker {
+    color: var(--color-brand-700);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .settings-icon {
+    display: inline-flex;
+    height: 30px;
+    width: 30px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: var(--color-brand-100);
+    color: var(--color-brand-700);
+  }
+  .settings-icon-cyan { background: var(--color-cyan-100); color: var(--color-cyan-600); }
+  .settings-icon-coral { background: var(--color-accent-100); color: var(--color-accent-600); }
+  .metric-card {
+    position: relative;
+    overflow: hidden;
+    background: var(--color-surface);
+  }
+  .metric-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 3px;
+    background: var(--metric-color, var(--color-brand-600));
+  }
+  .status-live {
+    animation: status-live 2.4s ease-in-out infinite;
+  }
+  @keyframes status-live {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(28, 154, 91, 0.18); }
+    50% { box-shadow: 0 0 0 5px rgba(28, 154, 91, 0.04); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .card, .btn, .status-live { transition: none; animation: none; }
+  }
+
   .stat-value {
     font-family: "Cascadia Mono", Consolas, monospace;
     font-weight: 700;
@@ -239,11 +451,44 @@
   .meter-seg-critico { background-color: var(--color-critico-600); }
   .meter-seg-neutro { background-color: var(--color-neutral-200); }
 
-  .table-scroll { overflow-x: auto; }
+  .table-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-padding-inline: 12px;
+    scrollbar-gutter: stable both-edges;
+  }
+  .table-scroll > .table-modern {
+    min-width: 720px;
+  }
   .table-modern td.num, .table-modern th.num {
     text-align: right;
     font-family: "Cascadia Mono", Consolas, monospace;
     white-space: nowrap;
+  }
+
+  [data-density="compact"] .card-header {
+    padding: 8px 10px;
+  }
+  [data-density="compact"] .table-modern thead th,
+  [data-density="compact"] .table-modern tbody th,
+  [data-density="compact"] .table-modern tbody td {
+    padding: 6px 8px;
+  }
+  [data-density="compact"] .input-field {
+    padding: 4px 7px;
+  }
+  [data-density="compact"] .btn {
+    padding: 4px 9px;
+  }
+  [data-density="compact"] .app-main {
+    padding: 8px;
+  }
+  @media (min-width: 640px) {
+    [data-density="compact"] .app-main {
+      padding: 16px;
+    }
   }
 
   .input-inline {
@@ -381,6 +626,10 @@
     background-size: 200% 100%;
     animation: skeleton-shimmer 1.4s ease-in-out infinite;
   }
+  .skeleton {
+    min-height: 1rem;
+    border: 1px solid rgba(203, 216, 227, 0.6);
+  }
   @media (prefers-reduced-motion: reduce) {
     .skeleton {
       animation: none;
@@ -390,5 +639,22 @@
   @keyframes skeleton-shimmer {
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
+  }
+
+  @media (max-width: 639px) {
+    .card-header {
+      padding: 10px 12px;
+    }
+    .table-scroll {
+      margin-inline: -1px;
+    }
+    .table-modern thead th,
+    .table-modern tbody th,
+    .table-modern tbody td {
+      padding: 8px 9px;
+    }
+    .table-modern tbody th {
+      min-width: 150px;
+    }
   }
 }

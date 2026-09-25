@@ -6,16 +6,15 @@ export async function getSubordinateIds(userId: string): Promise<string[]> {
   let frontier = [userId];
 
   while (frontier.length) {
-    const reports = await prisma.user.findMany({
+    // A user can have several managers now ("Configurar Subordinação"), so a
+    // report shows up once per manager relationship — dedupe via `visited`
+    // the same way a single-manager tree would have needed to for cycles.
+    const reports = await prisma.subordination.findMany({
       where: { managerId: { in: frontier } },
-      select: { id: true },
+      select: { userId: true },
     });
-    // A management cycle (A manages B, B manages A) would otherwise make this
-    // loop forever — skip anyone already seen. Marking each id as visited as
-    // we go (rather than after the whole batch) also keeps the result unique
-    // if the same person ever comes back twice within one level.
     const ids: string[] = [];
-    for (const { id } of reports) {
+    for (const { userId: id } of reports) {
       if (visited.has(id)) continue;
       visited.add(id);
       ids.push(id);
@@ -25,6 +24,12 @@ export async function getSubordinateIds(userId: string): Promise<string[]> {
   }
 
   return result;
+}
+
+/** Every manager a user answers to (not just the principal one) — used wherever an approval/notification must reach all of them, not just one. */
+export async function getManagerIds(userId: string): Promise<string[]> {
+  const rows = await prisma.subordination.findMany({ where: { userId }, select: { managerId: true } });
+  return rows.map((row) => row.managerId);
 }
 
 /**

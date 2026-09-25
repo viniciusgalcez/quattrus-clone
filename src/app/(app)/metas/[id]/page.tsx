@@ -3,12 +3,15 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, CalendarClock, Pencil } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getKpiStatus, periodLabel, STATUS_BADGE_CLASS, STATUS_LABEL, STATUS_RAIL_CLASS } from "@/lib/kpi";
+import { assertPageModule } from "@/lib/module-access";
+import { currentPeriod, getKpiStatus, periodLabel, STATUS_BADGE_CLASS, STATUS_LABEL, STATUS_RAIL_CLASS } from "@/lib/kpi";
 import { canView } from "@/lib/hierarchy";
 import { KpiBandChart } from "@/components/KpiBandChart";
 import type { BandPoint } from "@/lib/farol-tree";
 import { EmptyState } from "@/components/EmptyState";
 import { DuplicateKpiForm } from "@/components/DuplicateKpiForm";
+import { DelegacaoItemForm } from "@/components/DelegacaoItemForm";
+import { ForecastRequestForm } from "@/components/ForecastRequestForm";
 
 const DIRECTION_LABEL: Record<string, string> = {
   MORE: "Maior",
@@ -23,6 +26,7 @@ export default async function KpiDetailPage({
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  assertPageModule(session.user, "measurements");
 
   const { id } = await params;
 
@@ -38,6 +42,34 @@ export default async function KpiDetailPage({
 
   const allowed = await canView(session.user.id, session.user.role, kpi.ownerId);
   if (!allowed) notFound();
+
+  // Archived indicators are admin-only, everywhere — including a direct
+  // link, not just the lists that already filter them out.
+  if (kpi.archivedAt && session.user.role !== "ADMIN") notFound();
+
+  const isOwnerOrAdmin = session.user.id === kpi.ownerId || session.user.role === "ADMIN";
+
+  // Same reasoning as /fca/[measurementId]: a manager who drilled in from a
+  // colaborador's panel (/?userId=...) should land back on that panel, not
+  // silently on their own /metas.
+  const isOwnItem = kpi.ownerId === session.user.id;
+  const backHref = isOwnItem ? "/metas" : `/?userId=${kpi.ownerId}`;
+  const backLabel = isOwnItem ? "Metas e indicadores" : `Painel de ${kpi.owner.name}`;
+
+  const [delegations, candidateUsers] = isOwnerOrAdmin
+    ? await Promise.all([
+        prisma.kpiDelegation.findMany({
+          where: { kpiId: kpi.id },
+          include: { delegate: { select: { id: true, name: true } } },
+          orderBy: { createdAt: "asc" },
+        }),
+        prisma.user.findMany({
+          where: { active: true, id: { not: kpi.ownerId } },
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        }),
+      ])
+    : [[], []];
 
   const bandData: BandPoint[] = kpi.measurements.slice(-12).map((m) => {
     const tolerance = (m.goal * kpi.yellowRange) / 100;
@@ -55,14 +87,14 @@ export default async function KpiDetailPage({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <Link
-            href="/metas"
+            href={backHref}
             className="mb-1 inline-flex items-center gap-1 text-[12px] font-medium text-[var(--color-brand-700)] hover:underline"
           >
-            <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" /> Metas e indicadores
+            <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" /> {backLabel}
           </Link>
           <h1 className="page-title">{kpi.name}</h1>
         </div>
-        {(session.user.id === kpi.ownerId || session.user.role === "ADMIN") && (
+        {isOwnerOrAdmin && (
           <div className="flex flex-wrap items-center gap-2">
             <Link href={`/metas/${kpi.id}/editar`} className="btn">
               <Pencil className="h-3.5 w-3.5" /> Editar
@@ -71,6 +103,8 @@ export default async function KpiDetailPage({
           </div>
         )}
       </div>
+
+      <ForecastRequestForm kpiId={kpi.id} period={currentPeriod()} />
 
       <div className="card grid grid-cols-2 gap-4 p-5 sm:grid-cols-4">
         <div>
@@ -158,6 +192,10 @@ export default async function KpiDetailPage({
           </table>
         </div>
       </div>
+
+      {isOwnerOrAdmin && (
+        <DelegacaoItemForm kpiId={kpi.id} candidates={candidateUsers} delegations={delegations} />
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 ﻿import { describe, it, expect, vi, afterEach } from "vitest";
-import { getDeviationPct, getKpiStatus, currentPeriod, periodLabel, type KpiStatus } from "./kpi";
+import { getDeviationPct, getKpiStatus, currentPeriod, periodLabel, thresholdsForPeriod, type KpiStatus } from "./kpi";
 import type { Direction } from "@prisma/client";
 
 describe("KPI Business Logic", () => {
@@ -165,6 +165,19 @@ describe("KPI Business Logic", () => {
     it("formats period label correctly", () => {
       expect(periodLabel("2024-01")).toBe("Jan/24");
       expect(periodLabel("2024-12")).toBe("Dez/24");
+    });
+  });
+
+  describe("historical threshold windows", () => {
+    it("uses the latest range that was effective in the requested month", () => {
+      const fallback = { yellowRange: 5, redRange: 15 };
+      const windows = [
+        { startPeriod: "2026-01", endPeriod: "2026-06", yellowRange: 10, redRange: 20 },
+        { startPeriod: "2026-07", endPeriod: null, yellowRange: 3, redRange: 8 },
+      ];
+      expect(thresholdsForPeriod("2026-03", fallback, windows)).toEqual({ yellowRange: 10, redRange: 20 });
+      expect(thresholdsForPeriod("2026-09", fallback, windows)).toEqual({ yellowRange: 3, redRange: 8 });
+      expect(thresholdsForPeriod("2025-12", fallback, windows)).toEqual(fallback);
     });
   });
 });

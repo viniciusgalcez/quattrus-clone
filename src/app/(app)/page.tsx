@@ -1,5 +1,5 @@
 ﻿import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
@@ -20,10 +20,11 @@ import {
   STATUS_RAIL_CLASS,
   type KpiStatus,
 } from "@/lib/kpi";
-import { canView } from "@/lib/hierarchy";
+import { canView, exportableOwnerIds } from "@/lib/hierarchy";
 import { DashboardCharts, type ChartPoint } from "@/components/DashboardCharts";
 import { StatusMeter } from "@/components/StatusMeter";
 import { EmptyState } from "@/components/EmptyState";
+import { JumpToSection } from "@/components/JumpToSection";
 
 export default async function Home({
   searchParams,
@@ -38,11 +39,18 @@ export default async function Home({
   let viewedUserId = session.user.id;
   if (queryUserId && queryUserId !== session.user.id) {
     const allowed = await canView(session.user.id, session.user.role, queryUserId);
-    if (allowed) viewedUserId = queryUserId;
+    if (!allowed) notFound();
+    viewedUserId = queryUserId;
   }
 
   const viewedUser = await prisma.user.findUnique({ where: { id: viewedUserId } });
+  if (!viewedUser || !viewedUser.active) notFound();
   const period = currentPeriod();
+  const isOwnPanel = viewedUserId === session.user.id;
+  const preference = await prisma.userPreference.findUnique({
+    where: { userId: session.user.id },
+    select: { showTeamReds: true },
+  });
 
   const kpis = await prisma.kpi.findMany({
     where: { ownerId: viewedUserId, archivedAt: null },
@@ -55,14 +63,6 @@ export default async function Home({
   let red = 0;
   let critical = 0;
 
-  const topDesvios: {
-    kpiId: string;
-    measurementId: string | null;
-    name: string;
-    deviation: number | null;
-    status: "AMARELO" | "VERMELHO" | "CRITICO";
-  }[] = [];
-
   for (const kpi of kpis) {
     const current = kpi.measurements.find((m) => m.period === period) ?? null;
     const status = current
@@ -73,16 +73,6 @@ export default async function Home({
     else if (status === "AMARELO") yellow++;
     else if (status === "VERMELHO") red++;
     else if (status === "CRITICO") critical++;
-
-    if ((status === "AMARELO" || status === "VERMELHO" || status === "CRITICO") && current) {
-      topDesvios.push({
-        kpiId: kpi.id,
-        measurementId: current.id,
-        name: kpi.name,
-        deviation: getDeviationPct(current.goal, current.actual, kpi.direction),
-        status,
-      });
-    }
   }
 
   const totalComMedicao = green + yellow + red + critical;
@@ -91,10 +81,18 @@ export default async function Home({
     ? ((green * 10 + yellow * 5) / totalComMedicao).toFixed(1)
     : "0.0";
 
-  const [planosConcluidos, fcaPendentes] = await Promise.all([
+  const showTeamReds = isOwnPanel && (preference?.showTeamReds ?? true);
+  const fcaOwnerIds = showTeamReds ? await exportableOwnerIds(session.user) : [viewedUserId];
+
+  const [planosConcluidos, fcaAbertos] = await Promise.all([
     prisma.actionPlan.count({ where: { kpi: { ownerId: viewedUserId }, status: "CONCLUIDO" } }),
-    prisma.actionPlan.count({ where: { kpi: { ownerId: viewedUserId }, status: "ABERTO" } }),
+    prisma.actionPlan.findMany({
+      where: { kpi: { ownerId: { in: fcaOwnerIds } }, status: "ABERTO" },
+      include: { measurement: true, kpi: { include: { owner: { select: { id: true, name: true } } } } },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
+  const fcaPendentes = fcaAbertos.length;
 
   const periodSet = new Set<string>();
   kpis.forEach((k) => k.measurements.forEach((m) => periodSet.add(m.period)));
@@ -113,8 +111,6 @@ export default async function Home({
     return { name: periodLabel(p), Previsto: goalSum, Realizado: actualSum };
   });
 
-  const isOwnPanel = viewedUserId === session.user.id;
-
   // Presentation-only derivations from the data already fetched above.
   const statusCounts: Record<KpiStatus, number> = {
     VERDE: green,
@@ -123,27 +119,46 @@ export default async function Home({
     CRITICO: critical,
     SEM_DADO: kpis.length - totalComMedicao,
   };
+  // "Precisa de atenção" mirrors the "FCA pendentes" count above it, so it
+  // lists every open action plan — not just this month's deviations. An FCA
+  // opened last month stays listed here (and counted there) until someone
+  // resolves it, even if the KPI happens to be back on target this month.
+  const desviosParaAtencao = fcaAbertos.map((plan) => ({
+    kpiId: plan.kpiId,
+    measurementId: plan.measurementId,
+    name: plan.kpi.name,
+    ownerName: plan.kpi.owner.name,
+    deviation: getDeviationPct(plan.measurement.goal, plan.measurement.actual, plan.kpi.direction),
+    status: getKpiStatus(
+      plan.measurement.goal,
+      plan.measurement.actual,
+      plan.kpi.direction,
+      plan.kpi.yellowRange,
+      plan.kpi.redRange
+    ),
+  }));
   // Worst first: deviation is negative for a miss, so ascending puts the
   // indicator that needs attention today at the top of the list.
-  const desviosOrdenados = [...topDesvios].sort(
+  const desviosOrdenados = [...desviosParaAtencao].sort(
     (a, b) => (a.deviation ?? 0) - (b.deviation ?? 0)
   );
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="page-title">
+      <div className="dashboard-hero flex flex-wrap items-end justify-between gap-5 px-5 py-5 sm:px-7 sm:py-6">
+        <div className="relative z-[1]">
+          <div className="dashboard-kicker">Capri Gestiona · cockpit de performance</div>
+          <h1 className="mt-1 font-display text-[25px] font-bold tracking-[-0.02em] text-[var(--color-ink-900)]">
             {isOwnPanel ? "Seu painel" : `Painel de ${viewedUser?.name ?? "usuário"}`}
           </h1>
-          <p className="page-subtitle">
+          <p className="mt-1 text-[13px] text-[var(--color-ink-500)]">
             Acompanhamento de indicadores — {periodLabel(period)}
           </p>
         </div>
         {!isOwnPanel && (
           <Link
             href="/"
-            className="btn btn-ghost text-[var(--color-brand-700)]"
+            className="dashboard-back-link btn relative z-[1] border-[#b8cbe5] bg-white/70 text-[var(--color-brand-700)]"
           >
             <ArrowLeft className="h-3.5 w-3.5" /> Voltar ao meu painel
           </Link>
@@ -152,7 +167,7 @@ export default async function Home({
 
       {/* "Como estou" — one hero figure, then the distribution that explains it. */}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <section className="card flex flex-col gap-4 p-5 lg:col-span-2">
+        <section className="card metric-card min-w-0 flex flex-col gap-4 p-5 lg:col-span-2" style={{ "--metric-color": "var(--color-brand-600)" } as React.CSSProperties}>
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <h2 className="field-label">Score do ciclo</h2>
@@ -168,7 +183,7 @@ export default async function Home({
             </div>
             <div className="text-right">
               <h2 className="field-label">Metas atingidas</h2>
-              <div className="stat-value mt-1 text-[28px] text-[var(--color-ink-900)]">
+              <div className="stat-value mt-1 text-[32px] text-[var(--color-ink-900)]">
                 {metasAtingidasPct}%
               </div>
               <p className="mt-1 text-[11.5px] text-[var(--color-ink-500)]">
@@ -192,8 +207,8 @@ export default async function Home({
         {/* "O que está quebrado" — the only place on the screen allowed to be loud. */}
         <div className="flex flex-col gap-3">
           {fcaPendentes > 0 ? (
-            <Link
-              href="#desvios"
+            <JumpToSection
+              targetId="desvios"
               aria-label={`${fcaPendentes} plano(s) de ação em aberto. Ver indicadores fora da meta.`}
               className="card tile-urgent group flex flex-1 flex-col justify-between p-5 transition-shadow"
             >
@@ -219,9 +234,9 @@ export default async function Home({
                   aria-hidden="true"
                 />
               </span>
-            </Link>
+            </JumpToSection>
           ) : (
-            <div className="card tile-calm flex flex-1 flex-col justify-between p-5">
+            <div className="card tile-calm status-live flex flex-1 flex-col justify-between p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="field-label text-[var(--color-green-600)]">FCA pendentes</div>
@@ -255,7 +270,7 @@ export default async function Home({
       </div>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-5">
-        <section id="desvios" className="card flex flex-col lg:col-span-2">
+        <section id="desvios" className="card min-w-0 flex flex-col lg:col-span-2">
           <div className="card-header">
             <span>Precisa de atenção</span>
             {desviosOrdenados.length > 0 && (
@@ -285,6 +300,11 @@ export default async function Home({
                       <div className="truncate text-[13px] font-medium text-[var(--color-ink-900)]">
                         {item.name}
                       </div>
+                      {showTeamReds && item.ownerName !== viewedUser.name && (
+                        <div className="truncate text-[10.5px] text-[var(--color-ink-400)]">
+                          Responsável: {item.ownerName}
+                        </div>
+                      )}
                       <span className={`${STATUS_BADGE_CLASS[item.status]} mt-1`}>
                         {STATUS_LABEL[item.status]}
                       </span>
@@ -308,7 +328,7 @@ export default async function Home({
           )}
         </section>
 
-        <section className="card flex flex-col lg:col-span-3">
+        <section className="card min-w-0 flex flex-col lg:col-span-3">
           <div className="card-header">
             <span>Acompanhamento mensal</span>
             <span className="text-[11px] font-medium text-[var(--color-ink-400)]">
@@ -338,4 +358,3 @@ export default async function Home({
     </div>
   );
 }
-

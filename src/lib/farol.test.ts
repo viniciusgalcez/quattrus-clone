@@ -4,6 +4,7 @@ import {
   periodsOfYear,
   availableYears,
   summarizeRow,
+  visibleMonthIndexes,
   type FarolKpiInput,
 } from "./farol";
 
@@ -46,6 +47,44 @@ describe("availableYears", () => {
   it("merges years found in the data, newest first, without duplicates", () => {
     const years = availableYears(["2024-03", "2024-11", "2025-01"], 2026);
     expect(years).toEqual([2026, 2025, 2024]);
+  });
+});
+
+describe("visibleMonthIndexes", () => {
+  it("uses the base period and blank months to pick the visible dashboard window", () => {
+    expect(
+      visibleMonthIndexes({
+        year: 2026,
+        dashboardMonths: 6,
+        blankMonths: 2,
+        basePeriod: "2026-09",
+        fallbackPeriod: "2026-01",
+      })
+    ).toEqual([5, 6, 7, 8, 9, 10]);
+  });
+
+  it("falls back to the current period when the saved base period is for another year", () => {
+    expect(
+      visibleMonthIndexes({
+        year: 2026,
+        dashboardMonths: 3,
+        blankMonths: 0,
+        basePeriod: "2025-09",
+        fallbackPeriod: "2026-04",
+      })
+    ).toEqual([1, 2, 3]);
+  });
+
+  it("does not show more blank months than the year can contain", () => {
+    expect(
+      visibleMonthIndexes({
+        year: 2026,
+        dashboardMonths: 4,
+        blankMonths: 12,
+        basePeriod: "2026-11",
+        fallbackPeriod: "2026-01",
+      })
+    ).toEqual([8, 9, 10, 11]);
   });
 });
 

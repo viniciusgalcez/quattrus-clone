@@ -16,14 +16,14 @@ export function ImportCsvForm({
   const [state, formAction] = useActionState(action, null);
 
   return (
-    <form action={formAction} className="flex flex-col gap-3">
+    <form noValidate action={formAction} className="flex flex-col gap-3">
       <FormError message={state?.error} />
 
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="file"
           name="file"
-          accept=".csv,text/csv"
+          accept=".csv,.txt,.xls,.xlsx,text/csv,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           required
           className="input-field max-w-[280px] text-[12px]"
         />

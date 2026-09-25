@@ -19,7 +19,7 @@ export function DuplicateKpiForm({ kpiId, isAdmin }: { kpiId: string; isAdmin: b
   }
 
   return (
-    <form action={formAction} className="card flex flex-col gap-3 p-4">
+    <form noValidate action={formAction} className="card flex flex-col gap-3 p-4">
       <input type="hidden" name="kpiId" value={kpiId} />
       <FormError message={state?.error} />
 

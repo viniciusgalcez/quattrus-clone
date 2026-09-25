@@ -7,18 +7,22 @@ vi.mock("@/lib/prisma", () => ({
     user: {
       findMany: vi.fn(),
     },
+    subordination: {
+      findMany: vi.fn(),
+    },
   },
 }));
 
 const findMany = vi.mocked(prisma.user.findMany);
+const subordinationFindMany = vi.mocked(prisma.subordination.findMany);
 
-/** Builds a findMany implementation from a managerId -> reports map. */
+/** Builds a subordination.findMany implementation from a managerId -> reports map. */
 function mockHierarchy(tree: Record<string, string[]>) {
-  findMany.mockImplementation((async (args: { where: { managerId: { in: string[] } } }) => {
+  subordinationFindMany.mockImplementation((async (args: { where: { managerId: { in: string[] } } }) => {
     const managers = args.where.managerId.in;
     const reports = managers.flatMap((m) => tree[m] ?? []);
-    return reports.map((id) => ({ id }));
-  }) as unknown as typeof prisma.user.findMany);
+    return reports.map((userId) => ({ userId }));
+  }) as unknown as typeof prisma.subordination.findMany);
 }
 
 describe("Hierarchy Logic", () => {
@@ -41,8 +45,8 @@ describe("Hierarchy Logic", () => {
       mockHierarchy({ "user-1": ["user-2", "user-3"], "user-2": ["user-4"] });
       await getSubordinateIds("user-1");
       // level 1, level 2, then the empty terminator
-      expect(findMany).toHaveBeenCalledTimes(3);
-      const secondCall = findMany.mock.calls[1][0] as unknown as {
+      expect(subordinationFindMany).toHaveBeenCalledTimes(3);
+      const secondCall = subordinationFindMany.mock.calls[1][0] as unknown as {
         where: { managerId: { in: string[] } };
       };
       expect(secondCall.where.managerId.in).toEqual(["user-2", "user-3"]);
@@ -74,7 +78,7 @@ describe("Hierarchy Logic", () => {
   describe("wouldCreateCycle", () => {
     it("returns true when setting self as manager, without querying", async () => {
       expect(await wouldCreateCycle("user-1", "user-1")).toBe(true);
-      expect(findMany).not.toHaveBeenCalled();
+      expect(subordinationFindMany).not.toHaveBeenCalled();
     });
 
     it("returns true when setting a direct subordinate as manager", async () => {
@@ -126,7 +130,7 @@ describe("Hierarchy Logic", () => {
       mockHierarchy({});
       expect(await canView("admin", "ADMIN", "stranger")).toBe(true);
       // Short-circuits: an org-wide allow must not pay for a BFS.
-      expect(findMany).not.toHaveBeenCalled();
+      expect(subordinationFindMany).not.toHaveBeenCalled();
     });
   });
 

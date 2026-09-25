@@ -18,7 +18,7 @@ export function NovaMetaForm({
   const [state, formAction] = useActionState(createKpi, null);
 
   return (
-    <form action={formAction} className="card flex flex-col gap-4 p-5">
+    <form noValidate action={formAction} className="card flex flex-col gap-4 p-5">
       <FormError message={state?.error} />
 
       <div className="flex flex-col gap-1.5">
@@ -29,7 +29,7 @@ export function NovaMetaForm({
 
       <div className="flex flex-col gap-1.5">
         <label className="field-label">Descrição</label>
-        <textarea name="description" rows={3} className="input-field" />
+        <textarea name="description" rows={3} className="input-field resize-none" />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

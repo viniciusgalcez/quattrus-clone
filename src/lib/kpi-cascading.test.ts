@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { recalculateParentMeasurement } from "./kpi-cascading";
 import { prisma } from "@/lib/prisma";
-import { getKpiStatus } from "@/lib/kpi";
+import { getKpiStatus, thresholdsForPeriod } from "@/lib/kpi";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -12,17 +12,20 @@ vi.mock("@/lib/prisma", () => ({
 
 vi.mock("@/lib/kpi", () => ({
   getKpiStatus: vi.fn(),
+  thresholdsForPeriod: vi.fn((_, fallback) => fallback),
 }));
 
 const kpiFindUnique = vi.mocked(prisma.kpi.findUnique);
 const measurementUpsert = vi.mocked(prisma.measurement.upsert);
 const getKpiStatusMock = vi.mocked(getKpiStatus);
+const thresholdsForPeriodMock = vi.mocked(thresholdsForPeriod);
 
 const stub = <T,>(value: T) => value as never;
 
 describe("recalculateParentMeasurement", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    thresholdsForPeriodMock.mockImplementation((_, fallback) => fallback);
   });
 
   it("does nothing if parent not found or calculationType is MANUAL", async () => {
@@ -108,6 +111,33 @@ describe("recalculateParentMeasurement", () => {
     // actual: (5*2 + 10*3) / 5 = 40 / 5 = 8
     expect(getKpiStatusMock).toHaveBeenCalledWith(16, 8, "MORE", 10, 20);
     expect(measurementUpsert).toHaveBeenCalled();
+  });
+
+  it("calculates a quotient using the denominator average when configured", async () => {
+    kpiFindUnique.mockResolvedValue(stub({
+      id: "ratio-1",
+      calculationType: "MANUAL",
+      direction: "MORE",
+      yellowRange: 10,
+      redRange: 20,
+      decimalPlaces: 2,
+      parentId: null,
+      children: [],
+      measurements: [],
+      thresholdValidities: [],
+      formula: {
+        kind: "QUOTIENT",
+        denominatorAverage: true,
+        numeratorKpi: { measurements: [{ period: "2026-08", goal: 100, actual: 80 }] },
+        denominatorKpi: { measurements: [{ period: "2026-07", goal: 10, actual: 20 }, { period: "2026-08", goal: 30, actual: 40 }] },
+      },
+    }));
+    getKpiStatusMock.mockReturnValue("VERDE");
+
+    await recalculateParentMeasurement("ratio-1", "2026-08");
+
+    // goal: 100 / average(10,30) = 5; actual: 80 / average(20,40) = 2.67
+    expect(getKpiStatusMock).toHaveBeenCalledWith(5, 2.67, "MORE", 10, 20);
   });
 
   it("recursively calls itself if parentId is present", async () => {

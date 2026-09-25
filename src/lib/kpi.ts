@@ -2,6 +2,31 @@
 
 export type KpiStatus = "VERDE" | "AMARELO" | "VERMELHO" | "CRITICO" | "SEM_DADO";
 
+export type ThresholdWindow = {
+  startPeriod: string;
+  endPeriod: string | null;
+  yellowRange: number;
+  redRange: number;
+};
+
+/**
+ * Resolves the range that was effective in a cycle. Windows are append-only;
+ * when old data overlaps because of legacy imports, the most recently started
+ * valid window wins deterministically.
+ */
+export function thresholdsForPeriod(
+  period: string,
+  fallback: { yellowRange: number; redRange: number },
+  windows: ThresholdWindow[] | undefined
+) {
+  const active = (windows ?? [])
+    .filter((window) => window.startPeriod <= period && (!window.endPeriod || window.endPeriod >= period))
+    .sort((left, right) => right.startPeriod.localeCompare(left.startPeriod))[0];
+  return active
+    ? { yellowRange: active.yellowRange, redRange: active.redRange }
+    : fallback;
+}
+
 /**
  * Deviation is expressed so that a positive value always means "on/above goal"
  * regardless of whether the KPI is better when higher, lower, or on-target.

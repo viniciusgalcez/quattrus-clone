@@ -20,7 +20,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Gestiona — Gestão de Metas",
+  title: "Capri Gestiona — Gestão de Metas",
   description: "Plataforma de gestão estratégica e performance.",
 };
 

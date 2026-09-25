@@ -12,7 +12,7 @@ export function UserActiveToggle({
   disabled?: boolean;
 }) {
   return (
-    <form
+    <form noValidate
       action={async () => {
         await setUserActive(userId, !active);
       }}

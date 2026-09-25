@@ -1,4 +1,5 @@
 ﻿import { redirect } from "next/navigation";
+import Image from "next/image";
 import { AuthError } from "next-auth";
 import { signIn } from "@/lib/auth";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -9,7 +10,7 @@ async function login(formData: FormData) {
     await signIn("credentials", {
       username: formData.get("username"),
       password: formData.get("password"),
-      redirectTo: "/",
+      redirectTo: "/inicio",
     });
   } catch (error) {
     if (error instanceof AuthError) {
@@ -29,18 +30,25 @@ export default async function LoginPage({
   return (
     <div className="flex min-h-screen">
       <div className="relative hidden w-[42%] flex-col justify-between overflow-hidden bg-[var(--color-brand-900)] p-10 lg:flex">
+        <Image
+          src="/login-brand.png"
+          alt=""
+          fill
+          priority
+          className="pointer-events-none object-cover object-left"
+        />
+        {/* Bottom hint so the footer caption stays legible over the art. */}
         <div
-          className="pointer-events-none absolute inset-0 opacity-40"
+          className="pointer-events-none absolute inset-0"
           style={{
-            backgroundImage:
-              "radial-gradient(circle at 20% 20%, var(--color-brand-600), transparent 55%), radial-gradient(circle at 85% 75%, var(--color-accent-600), transparent 45%)",
+            backgroundImage: "linear-gradient(180deg, rgba(9,20,50,0) 82%, rgba(9,20,50,0.45) 100%)",
           }}
         />
         <div className="relative flex items-center gap-2.5">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 font-display text-[15px] font-bold text-white backdrop-blur">
             G
           </div>
-          <span className="font-display text-[17px] font-bold text-white">Gestiona</span>
+          <span className="font-display text-[17px] font-bold text-white">Capri Gestiona</span>
         </div>
         <div className="relative">
           <p className="font-display text-[26px] font-semibold leading-snug text-white">
@@ -66,7 +74,7 @@ export default async function LoginPage({
             Acesse sua conta para ver o painel de indicadores.
           </p>
 
-          <form action={login} className="mt-6 flex flex-col gap-4">
+          <form noValidate action={login} className="mt-6 flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <label className="field-label">Usuário</label>
               <input
@@ -98,11 +106,13 @@ export default async function LoginPage({
               Entrar
             </SubmitButton>
 
-            <div className="mt-2 rounded-lg border border-dashed border-[var(--color-border-strong)] px-3 py-2.5 text-[11px] leading-relaxed text-[var(--color-ink-500)]">
-              Usuários de demonstração (senha <span className="font-mono-num">demo123</span>):
-              <br />
-              ana.diretora, carlos.gestor, julia.colab, pedro.colab
-            </div>
+            {process.env.NODE_ENV !== "production" && (
+              <div className="mt-2 rounded-lg border border-dashed border-[var(--color-border-strong)] px-3 py-2.5 text-[11px] leading-relaxed text-[var(--color-ink-500)]">
+                Usuários de demonstração (senha <span className="font-mono-num">demo123</span>):
+                <br />
+                ana.diretora, carlos.gestor, julia.colab, pedro.colab
+              </div>
+            )}
           </form>
         </div>
       </div>

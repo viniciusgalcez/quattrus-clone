@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
 import { canView } from "@/lib/hierarchy";
+import { exportableOwnerIds } from "@/lib/hierarchy";
+import { recordAuditLog } from "@/lib/audit";
 
 /**
  * Approves a pending goal — the manager side of "aprovação de meta". The
@@ -13,7 +15,7 @@ import { canView } from "@/lib/hierarchy";
  * admin) can act on it.
  */
 export async function approveGoal(measurementId: string) {
-  const user = await requireUser();
+  const user = await requireUser("approvals");
 
   const measurement = await prisma.measurement.findUnique({
     where: { id: measurementId },
@@ -32,6 +34,28 @@ export async function approveGoal(measurementId: string) {
     data: { goalApprovalStatus: "APROVADA", goalApprovedById: user.id, goalApprovedAt: new Date() },
   });
 
+  await recordAuditLog({
+    userId: user.id,
+    action: "STATUS_CHANGE",
+    entity: "Measurement",
+    entityId: measurementId,
+    details: { field: "goalApprovalStatus", value: "APROVADA", ownerId: measurement.kpi.ownerId },
+  });
+
   revalidatePath("/aprovacoes");
   revalidatePath("/metas");
+}
+
+/** Approves every pending team goal currently visible to the acting manager. */
+export async function approveAllPendingGoals() {
+  const user = await requireUser("approvals");
+  if (user.role === "COLABORADOR") throw new Error("Você não tem permissão para aprovar metas.");
+  const ownerIds = (await exportableOwnerIds(user)).filter((ownerId) => ownerId !== user.id);
+  if (!ownerIds.length) return 0;
+  const pending = await prisma.measurement.findMany({
+    where: { goalApprovalStatus: "PENDENTE", kpi: { ownerId: { in: ownerIds }, archivedAt: null } },
+    select: { id: true },
+  });
+  for (const measurement of pending) await approveGoal(measurement.id);
+  return pending.length;
 }

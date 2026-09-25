@@ -5,7 +5,7 @@
  * no custom delimiters, no streaming.
  */
 
-export function parseCsv(text: string): string[][] {
+export function parseDelimited(text: string, delimiter = ","): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
@@ -32,7 +32,7 @@ export function parseCsv(text: string): string[][] {
 
     if (c === '"') {
       inQuotes = true;
-    } else if (c === ",") {
+    } else if (c === delimiter) {
       row.push(field);
       field = "";
     } else if (c === "\n" || c === "\r") {
@@ -56,6 +56,40 @@ export function parseCsv(text: string): string[][] {
   }
 
   return rows;
+}
+
+export function parseCsv(text: string): string[][] {
+  return parseDelimited(text, ",");
+}
+
+function countDelimiterOutsideQuotes(line: string, delimiter: string): number {
+  let count = 0;
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQuotes && line[i + 1] === '"') i++;
+      else inQuotes = !inQuotes;
+      continue;
+    }
+    if (!inQuotes && c === delimiter) count++;
+  }
+  return count;
+}
+
+export function detectTabularDelimiter(text: string): "," | ";" | "\t" {
+  const src = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+  const firstLine = src.split(/\r?\n/, 1)[0] ?? "";
+  const counts = [
+    [",", countDelimiterOutsideQuotes(firstLine, ",")],
+    [";", countDelimiterOutsideQuotes(firstLine, ";")],
+    ["\t", countDelimiterOutsideQuotes(firstLine, "\t")],
+  ] as const;
+  return counts.reduce((best, current) => (current[1] > best[1] ? current : best))[0];
+}
+
+export function parseTabularText(text: string): string[][] {
+  return parseDelimited(text, detectTabularDelimiter(text));
 }
 
 function escapeField(value: string): string {

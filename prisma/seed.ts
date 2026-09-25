@@ -82,11 +82,21 @@ function assertDestructiveSeedAllowed() {
 async function main() {
   assertDestructiveSeedAllowed();
 
-  await prisma.actionPlan.deleteMany();
-  await prisma.measurement.deleteMany();
-  await prisma.kpi.deleteMany();
-  await prisma.user.deleteMany();
-  await prisma.department.deleteMany();
+  // Truncate every application table regardless of FK order — deleteMany()
+  // in a fixed sequence bit-rots every time a new dependent table is added
+  // (Task, CalendarEvent, ... all reference User) and this script is already
+  // gated as destructive/dev-only.
+  await prisma.$executeRawUnsafe(`
+    DO $$
+    DECLARE
+      r RECORD;
+    BEGIN
+      FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename NOT LIKE '\_prisma%')
+      LOOP
+        EXECUTE 'TRUNCATE TABLE public."' || r.tablename || '" RESTART IDENTITY CASCADE';
+      END LOOP;
+    END $$;
+  `);
 
   const passwordHash = await bcrypt.hash("demo123", 10);
 

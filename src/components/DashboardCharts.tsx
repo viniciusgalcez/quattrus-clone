@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
   type TooltipContentProps,
 } from "recharts";
+import type { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
 import { LineChart } from "lucide-react";
 
 export type ChartPoint = {
@@ -44,7 +45,7 @@ const nfCompact = new Intl.NumberFormat("pt-BR", {
  * already know which series they want, they want the number. The delta line is
  * the question the chart actually exists to answer.
  */
-function ChartTooltip({ active, payload, label }: TooltipContentProps<any, any>) {
+function ChartTooltip({ active, payload, label }: TooltipContentProps<ValueType, NameType>) {
   if (!active || !payload?.length) return null;
 
   const previsto = payload.find((p) => p.dataKey === "Previsto")?.value;
@@ -103,7 +104,8 @@ export function DashboardCharts({ data }: { data: ChartPoint[] }) {
 
   return (
     <>
-      <ResponsiveContainer width="100%" height="100%">
+      <div className="dashboard-chart h-full w-full">
+        <ResponsiveContainer width="100%" height="100%">
         <BarChart
           data={data}
           accessibilityLayer
@@ -135,8 +137,9 @@ export function DashboardCharts({ data }: { data: ChartPoint[] }) {
           />
           <Bar dataKey="Previsto" fill={SERIES.Previsto} maxBarSize={24} radius={[4, 4, 0, 0]} />
           <Bar dataKey="Realizado" fill={SERIES.Realizado} maxBarSize={24} radius={[4, 4, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
 
       {/* Every plotted value stays reachable without reading a single color:
           the table is the chart's text equivalent for screen readers, and the

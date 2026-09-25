@@ -125,6 +125,29 @@ O seed também deixa 3 metas pendentes de aprovação (visíveis em
 com os 5 porquês e um Pareto preenchidos (Taxa de Refugo), além dos FCAs
 abertos automaticamente nos indicadores fora da meta.
 
+### Dados de exemplo dos módulos novos (Tarefas, Agenda, Facilitação)
+
+`db:seed` não popula Tarefas/Agenda/Facilitação. Para isso, depois do seed
+principal, rode o seed **aditivo** (não apaga nada, só insere se as tabelas
+estiverem vazias):
+
+```bash
+npm run db:seed:modulos
+```
+
+## Nota sobre migrations (drift histórico)
+
+O schema evoluiu por um bom tempo direto com `prisma db push` antes de
+`prisma/migrations` existir, então o histórico de migrations não reflete
+100% do schema — rodar `prisma migrate dev` num banco já populado pode pedir
+reset. Prefira `prisma db push` para sincronizar mudanças de schema em dev, e
+gere a migration correspondente separadamente com `prisma migrate diff`
+(comparando o schema antigo commitado com o novo) + `prisma migrate resolve
+--applied <nome>`, do jeito que foi feito na migration
+`add_tarefas_agenda_delegacao_facilitacao`. Isso mantém `prisma migrate
+deploy` funcionando para deploys em bancos novos, sem arriscar apagar dados
+de um banco de dev que já tem drift antigo.
+
 ## Testes
 
 ```bash
@@ -181,6 +204,25 @@ docker compose up -d --build
 docker compose ps                      # o serviço web deve ficar "healthy"
 docker compose logs -f web
 curl -f http://localhost:3000/api/health
+```
+
+### 5. Backup e restore
+
+No Windows/PowerShell, com o projeto `gestiona-prod` em execução:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/backup-postgres.ps1
+```
+
+O backup é criado em `backups/` como dump binário do Postgres. Essa pasta é
+ignorada pelo Git; em produção real, copie os arquivos para armazenamento fora
+da máquina.
+
+O restore é destrutivo e cancela por padrão. Só execute contra um destino que
+pode ser sobrescrito:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/restore-postgres.ps1 -DumpPath backups/gestiona-YYYYMMDD-HHMMSS.dump -ConfirmRestore
 ```
 
 ### Notas de operação

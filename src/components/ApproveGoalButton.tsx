@@ -6,7 +6,7 @@ import { SubmitButton } from "@/components/SubmitButton";
 
 export function ApproveGoalButton({ measurementId }: { measurementId: string }) {
   return (
-    <form
+    <form noValidate
       action={async () => {
         await approveGoal(measurementId);
       }}

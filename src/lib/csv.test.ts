@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseCsv, toCsv, rowsToRecords } from "./csv";
+import { detectTabularDelimiter, parseCsv, parseTabularText, toCsv, rowsToRecords } from "./csv";
 
 describe("parseCsv", () => {
   it("splits plain comma-separated rows", () => {
@@ -67,6 +67,33 @@ describe("toCsv", () => {
       ["2", 'Item com "aspas"'],
     ];
     expect(parseCsv(toCsv(original))).toEqual(original.map((r) => r.map(String)));
+  });
+});
+
+describe("parseTabularText", () => {
+  it("detects semicolon-separated files exported by regional spreadsheet settings", () => {
+    expect(parseTabularText("id;nome\n1;Refugo")).toEqual([
+      ["id", "nome"],
+      ["1", "Refugo"],
+    ]);
+  });
+
+  it("detects tab-separated text and xls-tabular exports", () => {
+    expect(parseTabularText("id\tnome\n1\tProdutividade")).toEqual([
+      ["id", "nome"],
+      ["1", "Produtividade"],
+    ]);
+  });
+
+  it("keeps commas inside quoted semicolon-separated values", () => {
+    expect(parseTabularText('id;nome\n1;"Item, com vírgula"')).toEqual([
+      ["id", "nome"],
+      ["1", "Item, com vírgula"],
+    ]);
+  });
+
+  it("defaults to comma when the header has no delimiter", () => {
+    expect(detectTabularDelimiter("nome\nRefugo")).toBe(",");
   });
 });
 

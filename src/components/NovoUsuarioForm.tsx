@@ -6,18 +6,21 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { FieldError, FormError } from "@/components/FieldError";
 
 type Option = { id: string; name: string };
+type AccessProfileOption = Option & { type: string };
 
 export function NovoUsuarioForm({
   managers,
   departments,
+  profiles,
 }: {
   managers: Option[];
   departments: Option[];
+  profiles: AccessProfileOption[];
 }) {
   const [state, formAction] = useActionState(createUser, null);
 
   return (
-    <form action={formAction} className="flex flex-col gap-3">
+    <form noValidate action={formAction} className="flex flex-col gap-3">
       <FormError message={state?.error} />
 
       <div className="flex flex-col gap-1.5">
@@ -42,6 +45,16 @@ export function NovoUsuarioForm({
           <option value="GESTOR">Gestor</option>
           <option value="ADMIN">Administrador</option>
         </select>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="field-label">Perfil de acesso</label>
+        <select name="accessProfileId" className="input-field" defaultValue="">
+          <option value="">— usar apenas o papel institucional —</option>
+          {profiles.map((profile) => (
+            <option key={profile.id} value={profile.id}>{profile.name} ({profile.type.toLowerCase()})</option>
+          ))}
+        </select>
+        <FieldError message={state?.fieldErrors?.accessProfileId} />
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="field-label">Gestor</label>

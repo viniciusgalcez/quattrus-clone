@@ -1,12 +1,14 @@
 ﻿import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { assertPageModule } from "@/lib/module-access";
 import { getSubordinateIds } from "@/lib/hierarchy";
 import { NovaMetaForm } from "@/components/NovaMetaForm";
 
 export default async function NovaMetaPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  assertPageModule(session.user, "measurements");
 
   // Only KPIs the user can actually see may be offered as a parent — an
   // unscoped list leaks the name and id of every indicator in the company.

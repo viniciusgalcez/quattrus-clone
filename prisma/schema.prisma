@@ -31,12 +31,35 @@ enum KpiCalculationType {
   WEIGHTED
 }
 
+enum KpiFormulaType {
+  MANUAL
+  SUM
+  AVERAGE
+  WEIGHTED
+  QUOTIENT
+  TOTALIZER
+}
+
+/// "C" column in the original Quattrus grid — PMB (Painel de Metas e
+/// Bônus) vs. a plain KPI. Presentation/filtering only, no calculation
+/// consequence today.
+enum KpiCategory {
+  PMB
+  KPI
+}
+
 /// A goal set by the owner starts PENDENTE and only counts as official once a
 /// manager/admin approves it; a goal set directly by a manager/admin is
 /// auto-approved. See decideGoalApproval in src/lib/measurement.ts.
 enum GoalApprovalStatus {
   APROVADA
   PENDENTE
+}
+
+enum ForecastStatus {
+  PENDENTE
+  APROVADA
+  REJEITADA
 }
 
 /// Snapshot of the traffic light at the moment the measurement was recorded.
@@ -53,6 +76,28 @@ enum TrafficLight {
   AZUL
 }
 
+enum TaskStatus {
+  ABERTA
+  EM_ANDAMENTO
+  CONCLUIDA
+  ATRASADA
+}
+
+enum StrategicProjectStatus {
+  PLANEJADO
+  EM_ANDAMENTO
+  CONCLUIDO
+  SUSPENSO
+}
+
+enum EventCategory {
+  REUNIAO_RESULTADO
+  PEMPB
+  REUNIAO_TIME
+  TREINAMENTO
+  FEEDBACK
+}
+
 model Department {
   id               String            @id @default(cuid())
   name             String            @unique
@@ -60,6 +105,7 @@ model Department {
   kpis             Kpi[]
   periodLocks      PeriodLock[]
   periodLockEvents PeriodLockEvent[]
+  strategicProjects StrategicProject[]
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 }
@@ -115,6 +161,11 @@ model User {
   passwordHash     String
   name             String
   role             Role              @default(COLABORADOR)
+  avatarStorageKey String?
+  avatarMimeType   String?
+  avatarUpdatedAt  DateTime?
+  accessProfileId  String?
+  accessProfile    AccessProfile?    @relation(fields: [accessProfileId], references: [id], onDelete: SetNull)
   active           Boolean           @default(true)
   managerId        String?
   manager          User?             @relation("Hierarchy", fields: [managerId], references: [id])
@@ -128,40 +179,183 @@ model User {
   periodLocks      PeriodLock[]      @relation("PeriodClosedBy")
   periodLockEvents PeriodLockEvent[] @relation("PeriodLockActor")
   auditLogs        AuditLog[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+
+  tasksAssigned     Task[]            @relation("TaskAssignee")
+  tasksCreated      Task[]            @relation("TaskCreatedBy")
+  events            CalendarEvent[]   @relation("EventCreatedBy")
+  eventParticipations EventParticipant[]
+  actionSteps       ActionPlanStep[]  @relation("StepResponsible")
+  attachments       Attachment[]      @relation("AttachmentUploadedBy")
+  forecastRequests  ForecastRequest[] @relation("ForecastRequester")
+  forecastsReviewed ForecastRequest[] @relation("ForecastReviewer")
+  notifications     Notification[]
+  notificationsFrom Notification[]    @relation("NotificationFrom")
+  importJobs        ImportJob[]
+  preference         UserPreference?
+  multiChartTabs     MultiChartTab[]
+  strategicProjects  StrategicProject[] @relation("ProjectOwner")
+
+  /// KPIs this user was granted edit rights to, one indicator at a time.
+  delegationsReceived KpiDelegation[] @relation("DelegateOf")
+  /// Delegations this user (owner or admin) handed out.
+  delegationsGiven    KpiDelegation[] @relation("DelegatedBy")
+
+  /// Users this user facilitates: edit rights to every KPI the facilitated user owns.
+  facilitating  Facilitation[] @relation("FacilitatorOf")
+  /// Users who facilitate this user.
+  facilitatedBy Facilitation[] @relation("FacilitatedByUser")
+
+  /// Rows where this user is the subordinate — "Responde para" grid.
+  subordinationsAsUser    Subordination[] @relation("SubordinationUser")
+  /// Rows where this user is one of the (possibly several) managers.
+  subordinationsAsManager Subordination[] @relation("SubordinationManager")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([managerId])
   @@index([departmentId])
+  @@index([accessProfileId])
+}
+
+/// Company-managed profile. `permissions` is a small, explicit allow-list of
+/// application modules; the user's institutional Role remains the authority
+/// ceiling and is never elevated by this record.
+model AccessProfile {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  type        String
+  permissions Json     @default("[]")
+  users       User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// Singleton configuration for the internal Capricórnio deployment. This is
+/// deliberately not a tenant/company relation: the product has one company.
+model CompanySettings {
+  id                  String   @id @default("capricornio")
+  legalName           String   @default("Capricórnio Têxtil S/A")
+  displayMonths       Int      @default(12)
+  blankMonths         Int      @default(0)
+  showGoal            Boolean  @default(true)
+  yellowGood          Boolean  @default(false)
+  redGood             Boolean  @default(false)
+  chronicRedMonths    Int      @default(3)
+  fixedBaseDate       String?
+  automationDisabled  Boolean  @default(false)
+  updatedAt           DateTime @updatedAt
+}
+
+model ImportJob {
+  id            String   @id @default(cuid())
+  type          String
+  fileName      String
+  status        String
+  created       Int      @default(0)
+  updated       Int      @default(0)
+  errors        Json     @default("[]")
+  startedAt     DateTime @default(now())
+  completedAt   DateTime?
+  requestedById String
+  requestedBy   User     @relation(fields: [requestedById], references: [id], onDelete: Cascade)
+
+  @@index([requestedById, startedAt])
 }
 
 model Kpi {
-  id              String             @id @default(cuid())
-  name            String
-  description     String?
-  ownerId         String
-  owner           User               @relation(fields: [ownerId], references: [id])
-  departmentId    String?
-  department      Department?        @relation(fields: [departmentId], references: [id])
-  parentId        String?
-  parent          Kpi?               @relation("KpiTree", fields: [parentId], references: [id])
-  children        Kpi[]              @relation("KpiTree")
-  metricUnit      String
-  direction       Direction          @default(MORE)
-  calculationType KpiCalculationType @default(MANUAL)
-  weight          Int                @default(0)
-  yellowRange     Float              @default(5)
-  redRange        Float              @default(15)
-  priority        Int                @default(0)
-  archivedAt      DateTime?
-  measurements    Measurement[]
-  actionPlans     ActionPlan[]
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  id                  String                 @id @default(cuid())
+  /// Internal, gap-tolerant counter backing the "Código" shown in the UI
+  /// (e.g. IC-00042) — a Postgres sequence, not a row count, so it stays
+  /// stable even if items are deleted. Formatted at render time, not stored
+  /// pre-formatted, so the display format can change without a migration.
+  sequenceNumber      Int                    @unique @default(autoincrement())
+  name                String
+  description         String?
+  ownerId             String
+  owner               User                   @relation(fields: [ownerId], references: [id])
+  departmentId        String?
+  department          Department?            @relation(fields: [departmentId], references: [id])
+  parentId            String?
+  parent              Kpi?                   @relation("KpiTree", fields: [parentId], references: [id])
+  children            Kpi[]                  @relation("KpiTree")
+  metricUnit          String
+  direction           Direction              @default(MORE)
+  calculationType     KpiCalculationType     @default(MANUAL)
+  weight              Int                    @default(0)
+  yellowRange         Float                  @default(5)
+  redRange            Float                  @default(15)
+  priority            Int                    @default(0)
+  category            KpiCategory            @default(KPI)
+  /// "Cliente" — free-text in the original (dropdown with an "Outro..."
+  /// escape hatch); kept as free text here too rather than a closed enum.
+  client              String?
+  /// "Bom para" — tag/label the item is grouped under. Free text for now;
+  /// promoting it to a managed taxonomy is a later, separate decision.
+  bomFor              String?
+  /// "Vermelho Crônico: N" — consecutive red months before the item is
+  /// flagged chronic. Null means the original's "not tracked" state, not 0.
+  chronicRedMonths    Int?
+  decimalPlaces       Int                    @default(2)
+  /// "Coeficiente" — a manual weighting multiplier, distinct from `weight`
+  /// (which already existed for the totalizer). Kept separate rather than
+  /// reusing `weight` because the original treats them as two different
+  /// knobs on two different tabs (Dados Básicos vs. Totalização).
+  coefficient         Float?
+  /// "Auxiliar" — marks a support item that should not count toward the
+  /// owner's main completion percentage.
+  auxiliary           Boolean                @default(false)
+  /// "Compartilhar este item para Todos os usuários" vs. "Não Compartilhar".
+  shared              Boolean                @default(false)
+  archivedAt          DateTime?
+  measurements        Measurement[]
+  actionPlans         ActionPlan[]
+  validities          KpiValidity[]
+  measurementPeriods  KpiMeasurementPeriod[]
+  thresholdValidities KpiThresholdValidity[]
+  formula             KpiFormula?
+  formulaNumerators   KpiFormula[]           @relation("FormulaNumerator")
+  formulaDenominators KpiFormula[]           @relation("FormulaDenominator")
+  dependenciesFrom    KpiDependency[]        @relation("DependencySource")
+  dependenciesTo      KpiDependency[]        @relation("DependencyTarget")
+  linkedFrom          KpiLinkedItem[]        @relation("LinkedSource")
+  linkedTo            KpiLinkedItem[]        @relation("LinkedTarget")
+  attachments         Attachment[]
+  forecastRequests    ForecastRequest[]
+  delegations         KpiDelegation[]
+  strategicProjects   StrategicProject[]
+  notifications       Notification[]
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
 
   @@index([ownerId])
   @@index([departmentId])
   @@index([parentId])
+}
+
+/// PAA: a strategic initiative with a clear owner, dates, budget and a
+/// measurable indicator it is intended to move.
+model StrategicProject {
+  id           String                 @id @default(cuid())
+  name         String
+  description  String?
+  ownerId      String
+  owner        User                   @relation("ProjectOwner", fields: [ownerId], references: [id])
+  departmentId String?
+  department   Department?            @relation(fields: [departmentId], references: [id])
+  kpiId        String?
+  kpi          Kpi?                   @relation(fields: [kpiId], references: [id])
+  startDate    DateTime?
+  dueDate      DateTime?
+  budget       Float?
+  status       StrategicProjectStatus @default(PLANEJADO)
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  @@index([ownerId])
+  @@index([departmentId])
+  @@index([kpiId])
+  @@index([status])
 }
 
 model Measurement {
@@ -171,15 +365,24 @@ model Measurement {
   period             String
   goal               Float
   actual             Float?
+  /// Whether the cycle was explicitly measured. An empty actual value and a
+  /// not-yet-measured cycle are materially different in the annual grid.
+  measured           Boolean            @default(false)
+  /// Forecast is distinct from the approved goal (meta) and can be reviewed
+  /// without overwriting the original target.
+  forecast           Float?
   trafficLight       TrafficLight       @default(SEM_DADO)
   reportedById       String?
   reportedBy         User?              @relation("ReportedBy", fields: [reportedById], references: [id])
   justification      String?
+  benchmark          String?
+  benchmarkValue     Float?
   goalApprovalStatus GoalApprovalStatus @default(APROVADA)
   goalApprovedById   String?
   goalApprovedBy     User?              @relation("GoalApprovedBy", fields: [goalApprovedById], references: [id])
   goalApprovedAt     DateTime?
   actionPlans        ActionPlan[]
+  attachments        Attachment[]
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
@@ -214,6 +417,9 @@ model ActionPlan {
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
   paretoItems   ParetoItem[]
+  steps         ActionPlanStep[]
+  attachments   Attachment[]
+  tasks         Task[]
 
   @@unique([measurementId])
   @@index([kpiId])
@@ -231,16 +437,321 @@ model ParetoItem {
   @@index([actionPlanId])
 }
 
-model AuditLog {
+/// Historical validity windows preserve the configuration used by each cycle.
+model KpiValidity {
+  id          String   @id @default(cuid())
+  kpiId       String
+  kpi         Kpi      @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  startPeriod String
+  endPeriod   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([kpiId, startPeriod])
+}
+
+model KpiMeasurementPeriod {
+  id          String   @id @default(cuid())
+  kpiId       String
+  kpi         Kpi      @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  startPeriod String
+  endPeriod   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([kpiId, startPeriod])
+}
+
+model KpiThresholdValidity {
+  id          String   @id @default(cuid())
+  kpiId       String
+  kpi         Kpi      @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  startPeriod String
+  endPeriod   String?
+  yellowRange Float
+  redRange    Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([kpiId, startPeriod])
+}
+
+model KpiFormula {
+  id                 String         @id @default(cuid())
+  kpiId              String         @unique
+  kpi                Kpi            @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  kind               KpiFormulaType
+  numeratorKpiId     String?
+  numeratorKpi       Kpi?           @relation("FormulaNumerator", fields: [numeratorKpiId], references: [id])
+  denominatorKpiId   String?
+  denominatorKpi     Kpi?           @relation("FormulaDenominator", fields: [denominatorKpiId], references: [id])
+  denominatorAverage Boolean        @default(false)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+}
+
+model KpiDependency {
+  id             String   @id @default(cuid())
+  sourceKpiId    String
+  sourceKpi      Kpi      @relation("DependencySource", fields: [sourceKpiId], references: [id], onDelete: Cascade)
+  targetKpiId    String
+  targetKpi      Kpi      @relation("DependencyTarget", fields: [targetKpiId], references: [id], onDelete: Cascade)
+  dependencyType String
+  createdAt      DateTime @default(now())
+
+  @@unique([sourceKpiId, targetKpiId, dependencyType])
+  @@index([targetKpiId])
+}
+
+model KpiLinkedItem {
+  id          String   @id @default(cuid())
+  sourceKpiId String
+  sourceKpi   Kpi      @relation("LinkedSource", fields: [sourceKpiId], references: [id], onDelete: Cascade)
+  targetKpiId String
+  targetKpi   Kpi      @relation("LinkedTarget", fields: [targetKpiId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([sourceKpiId, targetKpiId])
+  @@index([targetKpiId])
+}
+
+model ActionPlanStep {
+  id            String           @id @default(cuid())
+  actionPlanId  String
+  actionPlan    ActionPlan       @relation(fields: [actionPlanId], references: [id], onDelete: Cascade)
+  parentId      String?
+  parent        ActionPlanStep?  @relation("StepTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children      ActionPlanStep[] @relation("StepTree")
+  name          String
+  responsibleId String?
+  responsible   User?            @relation("StepResponsible", fields: [responsibleId], references: [id], onDelete: SetNull)
+  startDate     DateTime?
+  dueDate       DateTime?
+  value         Float?
+  status        ActionPlanStatus @default(ABERTO)
+  sortOrder     Int              @default(0)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([actionPlanId, sortOrder])
+  @@index([responsibleId])
+}
+
+model Attachment {
+  id            String       @id @default(cuid())
+  kpiId         String?
+  kpi           Kpi?         @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  actionPlanId  String?
+  actionPlan    ActionPlan?  @relation(fields: [actionPlanId], references: [id], onDelete: Cascade)
+  measurementId String?
+  measurement   Measurement? @relation(fields: [measurementId], references: [id], onDelete: Cascade)
+  originalName  String
+  storageKey    String       @unique
+  mimeType      String
+  sizeBytes     Int
+  uploadedById  String
+  uploadedBy    User         @relation("AttachmentUploadedBy", fields: [uploadedById], references: [id])
+  createdAt     DateTime     @default(now())
+
+  @@index([kpiId])
+  @@index([actionPlanId])
+  @@index([measurementId])
+  @@index([uploadedById])
+}
+
+/// Proposed forecast for a specific KPI period. It is separate from the
+/// official measurement so approval never overwrites the submitted history.
+model ForecastRequest {
+  id             String         @id @default(cuid())
+  kpiId          String
+  kpi            Kpi            @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  period         String
+  proposedGoal   Float?
+  proposedActual Float?
+  reason         String
+  status         ForecastStatus @default(PENDENTE)
+  requestedById  String
+  requestedBy    User           @relation("ForecastRequester", fields: [requestedById], references: [id])
+  reviewedById   String?
+  reviewedBy     User?          @relation("ForecastReviewer", fields: [reviewedById], references: [id])
+  reviewedAt     DateTime?
+  reviewNote     String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([kpiId, period])
+  @@index([status])
+  @@index([requestedById])
+  @@index([reviewedById])
+}
+
+model Notification {
+  id          String    @id @default(cuid())
+  recipientId String
+  recipient   User      @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  type        String
+  title       String
+  body        String
+  href        String?
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+  // Structured columns for the "Tipo/Ação/CID/Quem/Até quando/Origem" grid —
+  // all optional since older rows and some notification types won't have
+  // them; the free-text title/body stay the fallback everywhere.
+  relatedKpiId String?
+  relatedKpi   Kpi?      @relation(fields: [relatedKpiId], references: [id], onDelete: SetNull)
+  fromUserId   String?
+  fromUser     User?     @relation("NotificationFrom", fields: [fromUserId], references: [id], onDelete: SetNull)
+  originLabel  String?
+  dueAt        DateTime?
+
+  @@index([recipientId, readAt, createdAt])
+}
+
+model UserPreference {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  density           String   @default("comfortable")
+  theme             String   @default("dark")
+  startPage         String   @default("/")
+  emailNotifications Boolean  @default(true)
+  dashboardMonths   Int      @default(12)
+  blankMonths       Int      @default(0)
+  basePeriod        String?
+  showDelegated     Boolean  @default(true)
+  showTeamReds      Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+/// Saved 2x2 comparison boards for the Quattrus-style "Multigráficos" flow.
+/// Slots are stored as JSON [{ position: 0..3, kpiId: string }] and always
+/// revalidated against the user's visible indicators before writes and reads.
+model MultiChartTab {
   id        String   @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  action    String // e.g., "CREATE", "UPDATE", "DELETE"
-  entity    String // e.g., "Measurement", "ActionPlan"
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  slots     Json     @default("[]")
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, sortOrder])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  // Nullable: an automatic event (e.g. the 1-year archived-KPI purge running
+  // from the cron route) has no human actor.
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String // e.g., "CREATE", "UPDATE", "DELETE", "PURGE_ARCHIVED"
+  entity    String // e.g., "Measurement", "ActionPlan", "Kpi"
   entityId  String
-  details   String // JSON string with old/new values
+  details   String // JSON string with old/new values, or a data snapshot for a purge
   createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([entity, entityId])
+}
+
+/// Standalone 5W2H task — not tied to a KPI. The Quattrus "Tarefas" screen.
+model Task {
+  id          String     @id @default(cuid())
+  what        String
+  why         String?
+  howWhere    String?
+  actionPlanId String?
+  actionPlan   ActionPlan? @relation(fields: [actionPlanId], references: [id], onDelete: Cascade)
+  assigneeId  String?
+  assignee    User?      @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  startDate   DateTime?
+  dueDate     DateTime?
+  value       Float?
+  status      TaskStatus @default(ABERTA)
+  createdById String
+  createdBy   User       @relation("TaskCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([assigneeId])
+  @@index([actionPlanId])
+  @@index([createdById])
+}
+
+/// The Quattrus "Agenda" — calendar events grouped by category.
+model CalendarEvent {
+  id          String        @id @default(cuid())
+  title       String
+  category    EventCategory
+  startAt     DateTime
+  endAt       DateTime
+  createdById String
+  createdBy   User          @relation("EventCreatedBy", fields: [createdById], references: [id])
+  participants EventParticipant[]
+  createdAt   DateTime      @default(now())
+
+  @@index([startAt])
+  @@index([createdById])
+}
+
+model EventParticipant {
+  id        String        @id @default(cuid())
+  eventId   String
+  event     CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([eventId, userId])
+  @@index([userId])
+}
+
+/// Grants one user edit rights on one specific KPI, on top of the normal
+/// owner-or-admin rule. Mirrors "Configurar Delegação" in the original.
+model KpiDelegation {
+  id            String   @id @default(cuid())
+  kpiId         String
+  kpi           Kpi      @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  delegateId    String
+  delegate      User     @relation("DelegateOf", fields: [delegateId], references: [id], onDelete: Cascade)
+  delegatedById String
+  delegatedBy   User     @relation("DelegatedBy", fields: [delegatedById], references: [id])
+  createdAt     DateTime @default(now())
+
+  @@unique([kpiId, delegateId])
+  @@index([delegateId])
+}
+
+/// A blanket version of KpiDelegation: the facilitator gets edit rights to
+/// *every* KPI the facilitated user owns, present and future. Mirrors
+/// "Cadastrar Facilitador" / "Meus Facilitados" in the original.
+model Facilitation {
+  id            String   @id @default(cuid())
+  facilitatorId String
+  facilitator   User     @relation("FacilitatorOf", fields: [facilitatorId], references: [id], onDelete: Cascade)
+  facilitatedId String
+  facilitated   User     @relation("FacilitatedByUser", fields: [facilitatedId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+
+  @@unique([facilitatorId, facilitatedId])
+  @@index([facilitatedId])
+}
+
+/// "Configurar Subordinação" — a user can answer to N managers, one flagged
+/// `principal`. Supersedes the single `User.managerId` FK, which is kept as
+/// a synced cache of the principal manager (every write here updates it too)
+/// so every existing single-manager call site keeps working unmodified
+/// during the transition.
+model Subordination {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation("SubordinationUser", fields: [userId], references: [id], onDelete: Cascade)
+  managerId String
+  manager   User     @relation("SubordinationManager", fields: [managerId], references: [id], onDelete: Cascade)
+  principal Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, managerId])
+  @@index([managerId])
 }

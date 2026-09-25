@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { toCsv, rowsToRecords, type parseCsv } from "@/lib/csv";
-import type { Direction, KpiCalculationType } from "@prisma/client";
+import type { ActionPlanStatus, Direction, KpiCalculationType } from "@prisma/client";
 
 export const KPI_CSV_HEADERS = [
   "id",
@@ -19,6 +19,37 @@ export const KPI_CSV_HEADERS = [
 ] as const;
 
 export const MEASUREMENT_CSV_HEADERS = ["item_id", "periodo", "meta", "realizado", "justificativa"] as const;
+export const PERIODICITY_CSV_HEADERS = ["item_id", "vigencia_inicio", "vigencia_fim"] as const;
+export const THRESHOLD_CSV_HEADERS = ["item_id", "vigencia_inicio", "vigencia_fim", "faixa_amarela", "faixa_vermelha"] as const;
+export const COMPANY_ITEM_CSV_HEADERS = [
+  "nome_empresa",
+  "meses_exibidos",
+  "meses_em_branco",
+  "vermelho_cronico",
+  "data_base_fixa",
+  "exibir_meta",
+  "amarelo_bom",
+  "vermelho_bom",
+  "automacoes_desativadas",
+] as const;
+export const ACTION_PLAN_CSV_HEADERS = [
+  "medicao_id",
+  "fato",
+  "porque1",
+  "porque2",
+  "porque3",
+  "porque4",
+  "porque5",
+  "causa_raiz",
+  "o_que",
+  "quem",
+  "onde",
+  "quando",
+  "por_que",
+  "como",
+  "quanto",
+  "status",
+] as const;
 
 const numberField = (label: string) =>
   z.preprocess((v) => (v === "" || v === undefined || v === null ? undefined : Number(v)), z
@@ -28,6 +59,30 @@ const optionalNumberField = (label: string) =>
   z.preprocess((v) => (v === "" || v === undefined || v === null ? null : Number(v)), z
     .number({ error: `${label}: informe um número válido.` })
     .nullable());
+
+const optionalText = (max = 1000) => z.string().trim().max(max).optional().default("");
+
+const optionalDateText = z
+  .string()
+  .trim()
+  .optional()
+  .default("")
+  .refine((value) => value === "" || /^\d{4}-\d{2}-\d{2}$/.test(value), "quando deve estar no formato AAAA-MM-DD.");
+
+const optionalPeriodText = z
+  .string()
+  .trim()
+  .optional()
+  .default("")
+  .refine((value) => value === "" || /^\d{4}-(0[1-9]|1[0-2])$/.test(value), "vigencia_fim deve estar no formato AAAA-MM.");
+
+const booleanField = (label: string) =>
+  z.preprocess((value) => {
+    const normalized = String(value ?? "").trim().toLowerCase();
+    if (["1", "true", "sim", "s", "yes", "y"].includes(normalized)) return true;
+    if (["0", "false", "não", "nao", "n", "no", ""].includes(normalized)) return false;
+    return value;
+  }, z.boolean({ error: `${label}: use sim/não ou true/false.` }));
 
 /** One validated row from the item (Kpi) import spreadsheet. */
 export const kpiImportRowSchema = z.object({
@@ -69,6 +124,78 @@ export const measurementImportRowSchema = z.object({
 
 export type MeasurementImportRow = z.infer<typeof measurementImportRowSchema>;
 
+export const periodicityImportRowSchema = z.object({
+  item_id: z.string().trim().min(1, "Informe o item_id."),
+  vigencia_inicio: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "vigencia_inicio deve estar no formato AAAA-MM."),
+  vigencia_fim: optionalPeriodText,
+});
+
+export type PeriodicityImportRow = z.infer<typeof periodicityImportRowSchema>;
+
+export const thresholdImportRowSchema = z.object({
+  item_id: z.string().trim().min(1, "Informe o item_id."),
+  vigencia_inicio: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "vigencia_inicio deve estar no formato AAAA-MM."),
+  vigencia_fim: z
+    .string()
+    .trim()
+    .optional()
+    .default("")
+    .refine((value) => value === "" || /^\d{4}-(0[1-9]|1[0-2])$/.test(value), "vigencia_fim deve estar no formato AAAA-MM."),
+  faixa_amarela: numberField("faixa_amarela"),
+  faixa_vermelha: numberField("faixa_vermelha"),
+});
+
+export type ThresholdImportRow = z.infer<typeof thresholdImportRowSchema>;
+
+export const companyItemImportRowSchema = z.object({
+  nome_empresa: z.string().trim().min(3, "Informe o nome da empresa.").max(160),
+  meses_exibidos: numberField("meses_exibidos").pipe(z.number().min(1).max(24)),
+  meses_em_branco: numberField("meses_em_branco").pipe(z.number().min(0).max(24)),
+  vermelho_cronico: numberField("vermelho_cronico").pipe(z.number().min(1).max(24)),
+  data_base_fixa: z
+    .string()
+    .trim()
+    .optional()
+    .default("")
+    .refine((value) => value === "" || /^\d{4}-(0[1-9]|1[0-2])$/.test(value), "data_base_fixa deve estar no formato AAAA-MM."),
+  exibir_meta: booleanField("exibir_meta"),
+  amarelo_bom: booleanField("amarelo_bom"),
+  vermelho_bom: booleanField("vermelho_bom"),
+  automacoes_desativadas: booleanField("automacoes_desativadas"),
+});
+
+export type CompanyItemImportRow = z.infer<typeof companyItemImportRowSchema>;
+
+export const actionPlanImportRowSchema = z.object({
+  medicao_id: z.string().trim().min(1, "Informe o medicao_id."),
+  fato: z.string().trim().min(1, "Informe o fato observado.").max(1000),
+  porque1: optionalText(1000),
+  porque2: optionalText(1000),
+  porque3: optionalText(1000),
+  porque4: optionalText(1000),
+  porque5: optionalText(1000),
+  causa_raiz: optionalText(1000),
+  o_que: optionalText(500),
+  quem: optionalText(160),
+  onde: optionalText(300),
+  quando: optionalDateText,
+  por_que: optionalText(500),
+  como: optionalText(500),
+  quanto: optionalNumberField("quanto"),
+  status: z.preprocess(
+    (v) => (v === "" || v === undefined || v === null ? "ABERTO" : String(v).trim().toUpperCase()),
+    z.enum(["ABERTO", "CONCLUIDO"], { error: "status deve ser ABERTO ou CONCLUIDO." })
+  ) as z.ZodType<ActionPlanStatus>,
+});
+
+export type ActionPlanImportRow = z.infer<typeof actionPlanImportRowSchema>;
+
 export type ParsedRow<T> =
   | { ok: true; line: number; data: T }
   | { ok: false; line: number; error: string };
@@ -97,6 +224,22 @@ export function parseMeasurementImportRows(
   rows: ReturnType<typeof parseCsv>
 ): ParsedRow<MeasurementImportRow>[] {
   return parseRows(rowsToRecords(rows), measurementImportRowSchema);
+}
+
+export function parsePeriodicityImportRows(rows: ReturnType<typeof parseCsv>): ParsedRow<PeriodicityImportRow>[] {
+  return parseRows(rowsToRecords(rows), periodicityImportRowSchema);
+}
+
+export function parseThresholdImportRows(rows: ReturnType<typeof parseCsv>): ParsedRow<ThresholdImportRow>[] {
+  return parseRows(rowsToRecords(rows), thresholdImportRowSchema);
+}
+
+export function parseCompanyItemImportRows(rows: ReturnType<typeof parseCsv>): ParsedRow<CompanyItemImportRow>[] {
+  return parseRows(rowsToRecords(rows), companyItemImportRowSchema);
+}
+
+export function parseActionPlanImportRows(rows: ReturnType<typeof parseCsv>): ParsedRow<ActionPlanImportRow>[] {
+  return parseRows(rowsToRecords(rows), actionPlanImportRowSchema);
 }
 
 export type KpiExportRow = {

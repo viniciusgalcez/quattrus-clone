@@ -21,6 +21,8 @@ vi.mock("@/lib/prisma", () => ({
     actionPlan: { findUnique: vi.fn(), findFirst: vi.fn() },
     department: { findUnique: vi.fn() },
     user: { findUnique: vi.fn() },
+    kpiDelegation: { findUnique: vi.fn() },
+    facilitation: { findUnique: vi.fn() },
   },
 }));
 
@@ -33,6 +35,8 @@ const actionPlanFindUnique = vi.mocked(prisma.actionPlan.findUnique);
 const actionPlanFindFirst = vi.mocked(prisma.actionPlan.findFirst);
 const departmentFindUnique = vi.mocked(prisma.department.findUnique);
 const userFindUnique = vi.mocked(prisma.user.findUnique);
+const kpiDelegationFindUnique = vi.mocked(prisma.kpiDelegation.findUnique);
+const facilitationFindUnique = vi.mocked(prisma.facilitation.findUnique);
 const canViewMock = vi.mocked(canView);
 const authMock = vi.mocked(auth);
 
@@ -76,6 +80,26 @@ describe("Authorization Logic", () => {
       await expect(assertKpiEditable("invalid", normalUser)).rejects.toThrow(
         "Indicador não encontrado."
       );
+    });
+
+    it("allows a user individually delegated on this exact KPI", async () => {
+      kpiFindUnique.mockResolvedValue(asRecord({ id: "kpi-1", ownerId: "user-1" }));
+      kpiDelegationFindUnique.mockResolvedValue(asRecord({ id: "deleg-1" }));
+      await expect(assertKpiEditable("kpi-1", otherUser)).resolves.not.toThrow();
+    });
+
+    it("allows a facilitator of the KPI's owner", async () => {
+      kpiFindUnique.mockResolvedValue(asRecord({ id: "kpi-1", ownerId: "user-1" }));
+      kpiDelegationFindUnique.mockResolvedValue(null);
+      facilitationFindUnique.mockResolvedValue(asRecord({ id: "facil-1" }));
+      await expect(assertKpiEditable("kpi-1", otherUser)).resolves.not.toThrow();
+    });
+
+    it("still rejects someone who is neither delegated nor a facilitator", async () => {
+      kpiFindUnique.mockResolvedValue(asRecord({ id: "kpi-1", ownerId: "user-1" }));
+      kpiDelegationFindUnique.mockResolvedValue(null);
+      facilitationFindUnique.mockResolvedValue(null);
+      await expect(assertKpiEditable("kpi-1", otherUser)).rejects.toThrow(ForbiddenError);
     });
   });
 

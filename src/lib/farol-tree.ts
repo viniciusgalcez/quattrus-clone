@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getDeviationPct, getKpiStatus } from "@/lib/kpi";
+import { getDeviationPct, getKpiStatus, thresholdsForPeriod } from "@/lib/kpi";
 import { MONTH_LABELS, periodsOfYear, type FarolCell } from "@/lib/farol";
 
 export type BandPoint = {
@@ -28,16 +28,22 @@ export type FarolTreeNode = {
  * node instead of a single period — the tree structure mirrors buildKpiTree,
  * the per-cell math mirrors buildFarolRows.
  */
-export async function buildFarolTree(ownerIds: string[], year: number): Promise<FarolTreeNode[]> {
+export async function buildFarolTree(ownerIds: string[], year: number, visibleKpiIds: string[] = []): Promise<FarolTreeNode[]> {
   const periods = periodsOfYear(year);
 
   const kpis = await prisma.kpi.findMany({
-    where: { ownerId: { in: ownerIds }, archivedAt: null },
+    where: {
+      archivedAt: null,
+      OR: [{ ownerId: { in: ownerIds } }, ...(visibleKpiIds.length ? [{ id: { in: visibleKpiIds } }] : [])],
+    },
     include: {
       owner: { select: { id: true, name: true } },
       measurements: {
         where: { period: { gte: periods[0], lte: periods[11] } },
         select: { id: true, period: true, goal: true, actual: true },
+      },
+      thresholdValidities: {
+        select: { startPeriod: true, endPeriod: true, yellowRange: true, redRange: true },
       },
     },
     orderBy: [{ priority: "asc" }, { name: "asc" }],
@@ -49,6 +55,7 @@ export async function buildFarolTree(ownerIds: string[], year: number): Promise<
 
     const cells: FarolCell[] = periods.map((period, i) => {
       const m = byPeriod.get(period);
+      const thresholds = thresholdsForPeriod(period, kpi, kpi.thresholdValidities);
       if (!m) {
         return {
           period,
@@ -66,7 +73,7 @@ export async function buildFarolTree(ownerIds: string[], year: number): Promise<
         goal: m.goal,
         actual: m.actual,
         deviation: getDeviationPct(m.goal, m.actual, kpi.direction),
-        status: getKpiStatus(m.goal, m.actual, kpi.direction, kpi.yellowRange, kpi.redRange),
+        status: getKpiStatus(m.goal, m.actual, kpi.direction, thresholds.yellowRange, thresholds.redRange),
         measurementId: m.id,
       };
     });
@@ -78,7 +85,8 @@ export async function buildFarolTree(ownerIds: string[], year: number): Promise<
       if (cell.goal === null) {
         return { name: cell.monthLabel, meta: null, realizado: null, faixaBase: null, faixaAltura: null };
       }
-      const tolerance = (cell.goal * kpi.yellowRange) / 100;
+      const thresholds = thresholdsForPeriod(cell.period, kpi, kpi.thresholdValidities);
+      const tolerance = (cell.goal * thresholds.yellowRange) / 100;
       const low = cell.goal - tolerance;
       const high = cell.goal + tolerance;
       return {

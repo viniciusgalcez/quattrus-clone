@@ -13,6 +13,15 @@ COPY prisma ./prisma
 RUN npm ci
 
 # ---------------------------------------------------------------------------
+# migrator: short-lived job image for database migrations. It intentionally
+# stays separate from the long-running web runtime so the production server
+# does not carry the Prisma CLI dependency tree while serving requests.
+# ---------------------------------------------------------------------------
+FROM deps AS migrator
+ENV NODE_ENV=production
+CMD ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
+
+# ---------------------------------------------------------------------------
 # builder: compile the Next.js standalone output
 # ---------------------------------------------------------------------------
 FROM base AS builder
@@ -52,34 +61,6 @@ RUN chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# The standalone bundle does NOT include the Prisma CLI nor the migration
-# files, so give `prisma migrate deploy` its own self-contained copy to run
-# from at boot. The CLI's dependency tree reaches well outside the @prisma/*
-# scope (e.g. the `effect` package via @prisma/config) in a way Next's
-# standalone tracer never sees, since it only traces the Next.js server's own
-# import graph — copying individual package dirs by hand is a losing game of
-# whack-a-mole against Prisma's own dependencies. A full, separate copy of the
-# pre-prune node_modules from `deps` (where `npm ci` resolved everything) is
-# the only fix that doesn't silently break on the next Prisma version bump,
-# and keeping it under its own directory means it can never shadow anything
-# the standalone server traced into ./node_modules.
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./prisma-cli/node_modules
-COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma-cli/prisma
-
-# Entrypoint script: apply pending migrations, then exec the CMD.
-# `migrate deploy` is the only non-interactive, non-destructive migration
-# command — never use `migrate dev` here (it prompts and can reset the DB).
-RUN printf '%s\n' \
-      '#!/bin/sh' \
-      'set -e' \
-      'echo "[entrypoint] applying database migrations..."' \
-      '(cd /app/prisma-cli && node node_modules/prisma/build/index.js migrate deploy)' \
-      'echo "[entrypoint] migrations applied, starting server"' \
-      'exec "$@"' \
-      > /app/docker-entrypoint.sh \
-    && chmod +x /app/docker-entrypoint.sh \
-    && chown nextjs:nodejs /app/docker-entrypoint.sh
-
 USER nextjs
 
 EXPOSE 3000
@@ -88,5 +69,4 @@ ENV PORT=3000
 # set hostname to localhost
 ENV HOSTNAME="0.0.0.0"
 
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["node", "server.js"]

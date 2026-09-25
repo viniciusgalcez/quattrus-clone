@@ -11,6 +11,29 @@ export function periodsOfYear(year: number): string[] {
   return MONTH_LABELS.map((_, i) => `${year}-${String(i + 1).padStart(2, "0")}`);
 }
 
+export function visibleMonthIndexes({
+  year,
+  dashboardMonths,
+  blankMonths,
+  basePeriod,
+  fallbackPeriod,
+}: {
+  year: number;
+  dashboardMonths: number;
+  blankMonths: number;
+  basePeriod?: string | null;
+  fallbackPeriod: string;
+}): number[] {
+  const safeDashboardMonths = Math.min(12, Math.max(1, Math.trunc(dashboardMonths) || 12));
+  const safeBlankMonths = Math.min(12, Math.max(0, Math.trunc(blankMonths) || 0));
+  const anchorPeriod = basePeriod && basePeriod.startsWith(`${year}-`) ? basePeriod : fallbackPeriod;
+  const anchorMonth = anchorPeriod.startsWith(`${year}-`) ? Number(anchorPeriod.slice(5, 7)) : 12;
+  const anchorIndex = Number.isInteger(anchorMonth) && anchorMonth >= 1 && anchorMonth <= 12 ? anchorMonth - 1 : 11;
+  const endIndex = Math.min(11, anchorIndex + safeBlankMonths);
+  const startIndex = Math.max(0, endIndex - safeDashboardMonths + 1);
+  return Array.from({ length: endIndex - startIndex + 1 }, (_, offset) => startIndex + offset);
+}
+
 export function yearOf(period: string): number {
   return Number(period.slice(0, 4));
 }
