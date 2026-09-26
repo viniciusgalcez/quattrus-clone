@@ -23,6 +23,9 @@ export default auth((req) => {
 
 export const config = {
   // `api/health` must stay public: the container healthcheck would otherwise
-  // get a 307 to /login and the service would never report healthy.
-  matcher: ["/((?!api/auth|api/health|api/cron|_next/static|_next/image|favicon.ico).*)"],
+  // get a 307 to /login and the service would never report healthy. Public
+  // image assets also need to bypass auth so Next Image can optimize them.
+  matcher: [
+    "/((?!api/auth|api/health|api/cron|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };

@@ -62,12 +62,19 @@ const optionalNumberField = (label: string) =>
 
 const optionalText = (max = 1000) => z.string().trim().max(max).optional().default("");
 
+function isRealDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [year, month, day] = value.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day;
+}
+
 const optionalDateText = z
   .string()
   .trim()
   .optional()
   .default("")
-  .refine((value) => value === "" || /^\d{4}-\d{2}-\d{2}$/.test(value), "quando deve estar no formato AAAA-MM-DD.");
+  .refine((value) => value === "" || isRealDate(value), "quando deve ser uma data válida no formato AAAA-MM-DD.");
 
 const optionalPeriodText = z
   .string()

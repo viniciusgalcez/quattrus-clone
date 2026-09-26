@@ -12,6 +12,12 @@ export const PROFILE_MODULES = [
 
 export type ProfileModule = (typeof PROFILE_MODULES)[number];
 
+export const DEFAULT_PROFILE_BY_ROLE = {
+  ADMIN: "profile-admin",
+  GESTOR: "profile-manager",
+  COLABORADOR: "profile-collaborator",
+} as const;
+
 const allowedModules = new Set<string>(PROFILE_MODULES);
 
 /** Treat persisted JSON as untrusted input and expose only known modules. */

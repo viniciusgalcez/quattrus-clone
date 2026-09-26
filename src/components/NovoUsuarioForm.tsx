@@ -49,7 +49,7 @@ export function NovoUsuarioForm({
       <div className="flex flex-col gap-1.5">
         <label className="field-label">Perfil de acesso</label>
         <select name="accessProfileId" className="input-field" defaultValue="">
-          <option value="">— usar apenas o papel institucional —</option>
+          <option value="">Perfil padrão do papel selecionado</option>
           {profiles.map((profile) => (
             <option key={profile.id} value={profile.id}>{profile.name} ({profile.type.toLowerCase()})</option>
           ))}

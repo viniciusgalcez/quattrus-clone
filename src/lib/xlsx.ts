@@ -1,5 +1,9 @@
 import { inflateRawSync } from "node:zlib";
 
+const MAX_ENTRY_BYTES = 32 * 1024 * 1024;
+const MAX_WORKBOOK_BYTES = 48 * 1024 * 1024;
+const RELEVANT_FILES = new Set(["xl/worksheets/sheet1.xml", "xl/sharedStrings.xml"]);
+
 function unescapeXml(value: string) {
   return value.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
 }
@@ -14,19 +18,41 @@ function columnIndex(reference: string) {
 export function parseXlsxRows(input: Uint8Array): string[][] {
   const files = new Map<string, string>();
   let offset = 0;
+  let expandedBytes = 0;
   const view = new DataView(input.buffer, input.byteOffset, input.byteLength);
   while (offset + 30 <= input.length && view.getUint32(offset, true) === 0x04034b50) {
     const method = view.getUint16(offset + 8, true);
     const compressedSize = view.getUint32(offset + 18, true);
+    const uncompressedSize = view.getUint32(offset + 22, true);
     const nameLength = view.getUint16(offset + 26, true);
     const extraLength = view.getUint16(offset + 28, true);
     const nameStart = offset + 30;
     const dataStart = nameStart + nameLength + extraLength;
+    if (dataStart > input.length || compressedSize > input.length - dataStart) {
+      throw new Error("Planilha XLSX incompleta ou inválida.");
+    }
     const name = new TextDecoder().decode(input.slice(nameStart, nameStart + nameLength));
-    const compressed = input.slice(dataStart, dataStart + compressedSize);
-    const bytes = method === 0 ? compressed : method === 8 ? inflateRawSync(compressed) : null;
-    if (!bytes) throw new Error("A planilha usa um tipo de compactação não suportado.");
-    files.set(name, new TextDecoder().decode(bytes));
+    if (RELEVANT_FILES.has(name)) {
+      if (uncompressedSize > MAX_ENTRY_BYTES || expandedBytes + uncompressedSize > MAX_WORKBOOK_BYTES) {
+        throw new Error("A planilha XLSX descompactada excede o limite permitido.");
+      }
+      const compressed = input.slice(dataStart, dataStart + compressedSize);
+      if (method !== 0 && method !== 8) {
+        throw new Error("A planilha usa um tipo de compactação não suportado.");
+      }
+      let bytes: Uint8Array;
+      try {
+        bytes = method === 0 ? compressed
+          : inflateRawSync(compressed, { maxOutputLength: Math.min(MAX_ENTRY_BYTES, MAX_WORKBOOK_BYTES - expandedBytes) + 1 });
+      } catch {
+        throw new Error("Planilha XLSX inválida ou descompactada acima do limite permitido.");
+      }
+      expandedBytes += bytes.byteLength;
+      if (bytes.byteLength > MAX_ENTRY_BYTES || expandedBytes > MAX_WORKBOOK_BYTES) {
+        throw new Error("A planilha XLSX descompactada excede o limite permitido.");
+      }
+      files.set(name, new TextDecoder().decode(bytes));
+    }
     offset = dataStart + compressedSize;
   }
   const sheet = files.get("xl/worksheets/sheet1.xml");

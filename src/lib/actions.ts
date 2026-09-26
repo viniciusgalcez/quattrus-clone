@@ -55,7 +55,7 @@ import {
   fieldErrorsFrom,
   type FormActionState,
 } from "@/lib/schemas";
-import { permissionsFromForm } from "@/lib/profile-permissions";
+import { DEFAULT_PROFILE_BY_ROLE, permissionsFromForm } from "@/lib/profile-permissions";
 
 export async function createKpi(_prevState: FormActionState, formData: FormData): Promise<FormActionState> {
   const user = await requireUser("measurements");
@@ -1051,12 +1051,10 @@ export async function createUser(_prevState: FormActionState, formData: FormData
     return { error: "Confira os campos destacados.", fieldErrors: fieldErrorsFrom(parsed.error) };
   }
   const { username, name, password, role, managerId, departmentId, accessProfileId } = parsed.data;
-
-  if (accessProfileId) {
-    const profile = await prisma.accessProfile.findUnique({ where: { id: accessProfileId }, select: { type: true } });
-    if (!profile || profile.type !== role) {
-      return { error: "O perfil de acesso deve pertencer ao mesmo tipo do usuário.", fieldErrors: { accessProfileId: "Selecione um perfil compatível." } };
-    }
+  const resolvedProfileId = accessProfileId || DEFAULT_PROFILE_BY_ROLE[role];
+  const profile = await prisma.accessProfile.findUnique({ where: { id: resolvedProfileId }, select: { type: true } });
+  if (!profile || profile.type !== role) {
+    return { error: "O perfil de acesso deve pertencer ao mesmo tipo do usuário.", fieldErrors: { accessProfileId: "Selecione um perfil compatível." } };
   }
 
   const bcrypt = (await import("bcryptjs")).default;
@@ -1072,7 +1070,7 @@ export async function createUser(_prevState: FormActionState, formData: FormData
         role,
         managerId: managerId || null,
         departmentId: departmentId || null,
-        accessProfileId: accessProfileId || null,
+        accessProfileId: resolvedProfileId,
       },
     });
   } catch (err) {
@@ -1089,7 +1087,7 @@ export async function createUser(_prevState: FormActionState, formData: FormData
     action: "CREATE",
     entity: "User",
     entityId: created.id,
-    details: { username, role, managerId, departmentId, accessProfileId },
+    details: { username, role, managerId, departmentId, accessProfileId: resolvedProfileId },
   });
 
   revalidatePath("/usuarios");
@@ -1111,12 +1109,10 @@ export async function updateUser(
     return { error: "Confira os campos destacados.", fieldErrors: fieldErrorsFrom(parsed.error) };
   }
   const { name, role, managerId, departmentId, password, accessProfileId } = parsed.data;
-
-  if (accessProfileId) {
-    const profile = await prisma.accessProfile.findUnique({ where: { id: accessProfileId }, select: { type: true } });
-    if (!profile || profile.type !== role) {
-      return { error: "O perfil de acesso deve pertencer ao mesmo tipo do usuário.", fieldErrors: { accessProfileId: "Selecione um perfil compatível." } };
-    }
+  const resolvedProfileId = accessProfileId || DEFAULT_PROFILE_BY_ROLE[role];
+  const profile = await prisma.accessProfile.findUnique({ where: { id: resolvedProfileId }, select: { type: true } });
+  if (!profile || profile.type !== role) {
+    return { error: "O perfil de acesso deve pertencer ao mesmo tipo do usuário.", fieldErrors: { accessProfileId: "Selecione um perfil compatível." } };
   }
 
   if (managerId && (await wouldCreateCycle(targetUserId, managerId))) {
@@ -1133,7 +1129,7 @@ export async function updateUser(
     departmentId: string | null;
     accessProfileId: string | null;
     passwordHash?: string;
-  } = { name, role, managerId: managerId || null, departmentId: departmentId || null, accessProfileId: accessProfileId || null };
+  } = { name, role, managerId: managerId || null, departmentId: departmentId || null, accessProfileId: resolvedProfileId };
 
   const passwordChanged = Boolean(password);
   if (password) {
@@ -1150,7 +1146,7 @@ export async function updateUser(
     entity: "User",
     entityId: targetUserId,
     // Never log the password itself — only whether it changed.
-    details: { name, role, managerId, departmentId, accessProfileId, passwordChanged },
+    details: { name, role, managerId, departmentId, accessProfileId: resolvedProfileId, passwordChanged },
   });
 
   revalidatePath("/usuarios");

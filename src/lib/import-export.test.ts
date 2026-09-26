@@ -3,6 +3,7 @@ import { parseCsv } from "./csv";
 import {
   parseKpiImportRows,
   parseMeasurementImportRows,
+  parseActionPlanImportRows,
   kpisToCsv,
   measurementsToCsv,
 } from "./import-export";
@@ -70,6 +71,15 @@ describe("parseKpiImportRows", () => {
     expect(results).toHaveLength(2);
     expect(results[0].ok).toBe(false);
     expect(results[1].ok).toBe(true);
+  });
+});
+
+describe("parseActionPlanImportRows", () => {
+  it("rejects calendar dates that JavaScript would silently roll into another month", () => {
+    const header = "medicao_id,fato,porque1,porque2,porque3,porque4,porque5,causa_raiz,o_que,quem,onde,quando,por_que,como,quanto,status";
+    const [result] = parseActionPlanImportRows(parseCsv(`${header}\nmed-1,Fato,,,,,,,,,,2026-02-31,,,,ABERTO`));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/data válida/);
   });
 });
 

@@ -5,10 +5,10 @@
  * destructive: it wipes the database first).
  *
  * Required env vars: ADMIN_USERNAME, ADMIN_PASSWORD, ADMIN_NAME.
- * Idempotent: re-running it against an existing username updates the name
- * and password instead of failing, so it's safe to use for a password reset
- * too (e.g. after the first login, from a fresh shell with a new
- * ADMIN_PASSWORD).
+ * Idempotent: re-running it against an existing username updates the name,
+ * password and access profile instead of failing, so it's safe to use for a
+ * password reset too (e.g. after the first login, from a fresh shell with a
+ * new ADMIN_PASSWORD).
  */
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
@@ -32,12 +32,27 @@ async function main() {
     throw new Error("ADMIN_PASSWORD must be at least 8 characters.");
   }
 
+  const adminProfile = await prisma.accessProfile.findUnique({
+    where: { id: "profile-admin" },
+    select: { id: true },
+  });
+  if (!adminProfile) {
+    throw new Error("Default ADMIN access profile is missing. Apply database migrations first.");
+  }
+
   const passwordHash = await bcrypt.hash(password, 12);
 
   const user = await prisma.user.upsert({
     where: { username },
-    update: { name, passwordHash, role: "ADMIN", active: true },
-    create: { username, name, passwordHash, role: "ADMIN", active: true },
+    update: { name, passwordHash, role: "ADMIN", active: true, accessProfileId: adminProfile.id },
+    create: {
+      username,
+      name,
+      passwordHash,
+      role: "ADMIN",
+      active: true,
+      accessProfileId: adminProfile.id,
+    },
   });
 
   console.log(`ADMIN user ready: ${user.username} (${user.name}).`);

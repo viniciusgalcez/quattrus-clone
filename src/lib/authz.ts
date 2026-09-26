@@ -8,6 +8,7 @@ import type { ProfileModule } from "@/lib/profile-permissions";
 export async function requireUser(module?: ProfileModule) {
   const session = await auth();
   if (!session?.user) throw new Error("Não autenticado.");
+  if (session.user.active === false) throw new ForbiddenError("Sua conta está desativada.");
   // This is intentionally evaluated in every Server Action. The session
   // callback refreshes profile permissions from PostgreSQL, so revocation
   // takes effect without relying on the client menu or a stale JWT.

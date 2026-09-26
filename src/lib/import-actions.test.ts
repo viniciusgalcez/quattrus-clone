@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { Prisma } from "@prisma/client";
 import {
   importActionPlansCsv,
   importCompanyItemsCsv,
@@ -23,7 +24,7 @@ import { assertPeriodWritable } from "@/lib/period-locks";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    kpi: { create: vi.fn(), update: vi.fn() },
+    kpi: { create: vi.fn(), update: vi.fn(), findUnique: vi.fn() },
     user: { findUnique: vi.fn() },
     department: { findUnique: vi.fn() },
     measurement: { findUnique: vi.fn(), upsert: vi.fn() },
@@ -73,6 +74,7 @@ const assertPeriodWritableMock = vi.mocked(assertPeriodWritable);
 
 const kpiCreate = vi.mocked(prisma.kpi.create);
 const kpiUpdate = vi.mocked(prisma.kpi.update);
+const kpiFindUnique = vi.mocked(prisma.kpi.findUnique);
 const userFindUnique = vi.mocked(prisma.user.findUnique);
 const departmentFindUnique = vi.mocked(prisma.department.findUnique);
 const measurementFindUnique = vi.mocked(prisma.measurement.findUnique);
@@ -143,6 +145,56 @@ describe("importKpisCsv", () => {
     expect(kpiCreate).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ name: "Despesa", ownerId: "user-1" }) })
     );
+  });
+
+  it("does not create the same blank-id item again after an exact file retry", async () => {
+    const csv = `${KPI_HEADER}\n,Despesa,,,,,R$,MORE,MANUAL,,,,`;
+    let stored: { id: string; ownerId: string } | null = null;
+    kpiFindUnique.mockImplementation((async () => stored) as never);
+    kpiCreate.mockImplementation((async (args: Parameters<typeof kpiCreate>[0]) => {
+      stored = { id: args.data.id as string, ownerId: args.data.ownerId as string };
+      return stored;
+    }) as never);
+
+    const first = await importKpisCsv(null, csvFile(csv));
+    const retry = await importKpisCsv(null, csvFile(csv));
+
+    expect(first.report).toEqual({ created: 1, updated: 0, errors: [] });
+    expect(retry.report).toEqual({ created: 0, updated: 1, errors: [] });
+    expect(kpiCreate).toHaveBeenCalledTimes(1);
+    expect(assertKpiEditableMock).toHaveBeenCalledWith(stored!.id, expect.objectContaining({ id: "user-1" }));
+  });
+
+  it("uses different IDs for different file contents and different callers", async () => {
+    const first = `${KPI_HEADER}\n,Despesa,,,,,R$,MORE,MANUAL,,,,`;
+    const changed = `${KPI_HEADER}\n,Despesa revisada,,,,,R$,MORE,MANUAL,,,,`;
+    await importKpisCsv(null, csvFile(first));
+    await importKpisCsv(null, csvFile(changed));
+    requireUserMock.mockResolvedValue(stub({ id: "user-2", username: "outra.pessoa", role: "COLABORADOR" }));
+    await importKpisCsv(null, csvFile(first));
+    const ids = kpiCreate.mock.calls.map(([args]) => args.data.id);
+    expect(new Set(ids).size).toBe(3);
+  });
+
+  it("treats a concurrent insert of the same deterministic ID as a replay", async () => {
+    const csv = `${KPI_HEADER}\n,Despesa,,,,,R$,MORE,MANUAL,,,,`;
+    let expectedId = "";
+    kpiFindUnique
+      .mockResolvedValueOnce(null)
+      .mockImplementation((async () => ({ id: expectedId, ownerId: "user-1" })) as never);
+    kpiCreate.mockImplementation((async (args: Parameters<typeof kpiCreate>[0]) => {
+      expectedId = args.data.id as string;
+      throw new Prisma.PrismaClientKnownRequestError("Unique constraint", {
+        code: "P2002",
+        clientVersion: "6.19.3",
+        meta: { target: ["id"] },
+      });
+    }) as never);
+
+    const result = await importKpisCsv(null, csvFile(csv));
+
+    expect(result.report).toEqual({ created: 0, updated: 1, errors: [] });
+    expect(kpiFindUnique).toHaveBeenCalledTimes(2);
   });
 
   it("updates an existing item when the id column is filled", async () => {
@@ -251,6 +303,27 @@ describe("importKpisCsv", () => {
     expect(result.error).toMatch(/15 MB/);
     expect(kpiCreate).not.toHaveBeenCalled();
     expect(kpiUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejects a measurement sheet in the item import before writing", async () => {
+    const result = await importKpisCsv(null, csvFile(`${MEASUREMENT_HEADER}\nkpi-1,2026-06,100,90,`));
+    expect(result.error).toMatch(/Cabeçalho incompatível/);
+    expect(kpiCreate).not.toHaveBeenCalled();
+    expect(importJobCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejects repeated columns before writing", async () => {
+    const result = await importKpisCsv(null, csvFile(`${KPI_HEADER},nome\n,Despesa,,,,,R$,MORE,MANUAL,,,,,Outra`));
+    expect(result.error).toMatch(/colunas repetidas/);
+    expect(kpiCreate).not.toHaveBeenCalled();
+  });
+
+  it("rejects a batch above 200 rows before writing any item", async () => {
+    const csv = [KPI_HEADER, ...Array.from({ length: 201 }, (_, index) => `,Despesa ${index},,,,,R$,MORE,MANUAL,,,,`)].join("\n");
+    const result = await importKpisCsv(null, csvFile(csv));
+    expect(result.error).toMatch(/200 linhas.*Divida/);
+    expect(kpiCreate).not.toHaveBeenCalled();
+    expect(importJobCreate).not.toHaveBeenCalled();
   });
 });
 

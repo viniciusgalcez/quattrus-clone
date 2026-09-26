@@ -1,7 +1,14 @@
 ﻿import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // Docker consumes Next's minimal standalone server. Vercel needs the
+  // platform-managed output so its post-build step can assemble functions.
+  ...(process.env.VERCEL ? {} : { output: "standalone" as const }),
+  experimental: {
+    // Server Actions default to 1 MB. Leave multipart overhead below Vercel's
+    // 4.5 MB request limit; the import validator caps files at 4 MB there.
+    serverActions: { bodySizeLimit: process.env.VERCEL ? "4.25mb" : "16mb" },
+  },
   poweredByHeader: false,
   async headers() {
     return [

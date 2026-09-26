@@ -196,6 +196,11 @@ describe("Authorization Logic", () => {
       authMock.mockResolvedValue(asRecord(null));
       await expect(requireUser()).rejects.toThrow("Não autenticado.");
     });
+
+    it("denies a deactivated account even with an existing session", async () => {
+      authMock.mockResolvedValue(asRecord({ user: { id: "user-1", active: false, permissions: ["imports"] } }));
+      await expect(requireUser("imports")).rejects.toThrow("Sua conta está desativada.");
+    });
   });
 
   describe("assertFcaResolved", () => {

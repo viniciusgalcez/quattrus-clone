@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
+  createUser,
   createTask,
   createEvent,
   createFacilitation,
@@ -9,6 +10,7 @@ import {
   saveUserPreferences,
   upsertAnnualMeasurement,
   upsertMeasurement,
+  updateUser,
 } from "./actions";
 import { prisma } from "@/lib/prisma";
 import { requireUser, assertKpiEditable, assertFcaResolved, assertActionPlanEditable } from "@/lib/authz";
@@ -23,7 +25,9 @@ vi.mock("@/lib/prisma", () => ({
     actionPlan: { upsert: vi.fn() },
     facilitation: { create: vi.fn(), findUnique: vi.fn(), delete: vi.fn() },
     userPreference: { upsert: vi.fn() },
-    user: { count: vi.fn(), findFirst: vi.fn() },
+    user: { count: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
+    accessProfile: { findUnique: vi.fn() },
+    subordination: { updateMany: vi.fn() },
     calendarEvent: { create: vi.fn() },
     task: { create: vi.fn(), findUnique: vi.fn(), update: vi.fn(), delete: vi.fn() },
     notification: { updateMany: vi.fn() },
@@ -85,6 +89,10 @@ const userFindFirst = vi.mocked(prisma.user.findFirst);
 const calendarEventCreate = vi.mocked(prisma.calendarEvent.create);
 const taskCreate = vi.mocked(prisma.task.create);
 const notificationUpdateMany = vi.mocked(prisma.notification.updateMany);
+const userCreate = vi.mocked(prisma.user.create);
+const userUpdate = vi.mocked(prisma.user.update);
+const profileFindUnique = vi.mocked(prisma.accessProfile.findUnique);
+const subordinationUpdateMany = vi.mocked(prisma.subordination.updateMany);
 const recalculateParentMock = vi.mocked(recalculateParentMeasurement);
 const recalculateDependentsMock = vi.mocked(recalculateDependentMeasurements);
 
@@ -96,6 +104,53 @@ function form(fields: Record<string, string>) {
   for (const [k, v] of Object.entries(fields)) fd.append(k, v);
   return fd;
 }
+
+describe("user access profiles", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    requireUserMock.mockResolvedValue(stub({ id: "admin-1", role: "ADMIN", permissions: ["users"] }));
+    profileFindUnique.mockResolvedValue(stub({ type: "COLABORADOR" }));
+    userCreate.mockResolvedValue(stub({ id: "new-user" }));
+    userUpdate.mockResolvedValue(stub({ id: "existing-user" }));
+    subordinationUpdateMany.mockResolvedValue(stub({ count: 0 }));
+  });
+
+  it("assigns the default role profile when creating a user", async () => {
+    await createUser(null, form({
+      username: "novo.usuario", name: "Novo Usuário", password: "senha-segura-123",
+      role: "COLABORADOR", accessProfileId: "", managerId: "", departmentId: "",
+    }));
+
+    expect(profileFindUnique).toHaveBeenCalledWith({ where: { id: "profile-collaborator" }, select: { type: true } });
+    expect(userCreate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ accessProfileId: "profile-collaborator" }),
+    }));
+  });
+
+  it("repairs a missing profile when editing a user", async () => {
+    await updateUser("existing-user", null, form({
+      name: "Usuário Atual", role: "COLABORADOR", accessProfileId: "",
+      managerId: "", departmentId: "", password: "",
+    }));
+
+    expect(userUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "existing-user" },
+      data: expect.objectContaining({ accessProfileId: "profile-collaborator" }),
+    }));
+  });
+
+  it("rejects a profile belonging to another role", async () => {
+    profileFindUnique.mockResolvedValue(stub({ type: "ADMIN" }));
+
+    const result = await createUser(null, form({
+      username: "novo.usuario", name: "Novo Usuário", password: "senha-segura-123",
+      role: "COLABORADOR", accessProfileId: "profile-admin", managerId: "", departmentId: "",
+    }));
+
+    expect(result?.fieldErrors?.accessProfileId).toBeDefined();
+    expect(userCreate).not.toHaveBeenCalled();
+  });
+});
 
 describe("upsertMeasurement", () => {
   beforeEach(() => {

@@ -8,6 +8,10 @@ declare module "next-auth" {
       role: string;
       active: boolean;
       permissions: string[];
+      avatarUpdatedAt: string | null;
+      theme: "light" | "dark";
+      density: "compact" | "comfortable";
+      showTeamReds: boolean;
     } & DefaultSession["user"];
   }
 

@@ -1,12 +1,13 @@
 ﻿import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { recordAuditLog } from "@/lib/audit";
 import { normalizeProfilePermissions } from "@/lib/profile-permissions";
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+const nextAuth = NextAuth({
   trustHost: true,
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
@@ -39,7 +40,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null;
         }
 
-        const user = await prisma.user.findUnique({ where: { username } });
+        const user = await prisma.user.findUnique({ where: { username: normalizedUsername } });
         if (!user) {
           await recordAuditLog({
             action: "LOGIN_FAILURE",
@@ -99,14 +100,41 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // not the next login. The proxy checks `active` and signs the user
         // out if it's false.
         const dbUser = await prisma.user.findUnique({
+          relationLoadStrategy: "join",
           where: { id: token.id as string },
-          select: { role: true, active: true, accessProfile: { select: { permissions: true } } },
+          select: {
+            name: true,
+            role: true,
+            active: true,
+            avatarUpdatedAt: true,
+            accessProfile: { select: { permissions: true } },
+            preference: { select: { theme: true, density: true, showTeamReds: true } },
+          },
         });
+        session.user.name = dbUser?.name ?? session.user.name;
         session.user.role = dbUser?.role ?? token.role as string;
         session.user.active = dbUser?.active ?? false;
         session.user.permissions = normalizeProfilePermissions(dbUser?.accessProfile?.permissions);
+        session.user.avatarUpdatedAt = dbUser?.avatarUpdatedAt?.toISOString() ?? null;
+        session.user.theme = dbUser?.preference?.theme === "light" ? "light" : "dark";
+        session.user.density = dbUser?.preference?.density === "compact" ? "compact" : "comfortable";
+        session.user.showTeamReds = dbUser?.preference?.showTeamReds ?? true;
       }
       return session;
     },
   },
 });
+
+export const { handlers, signIn, signOut } = nextAuth;
+
+// Layouts, pages and nested Server Components frequently request the same
+// session during one render. React's request-scoped cache keeps the security
+// refresh above fresh on every request while avoiding duplicate DB reads
+// inside that request. Calls with arguments (the Proxy wrapper) are forwarded
+// unchanged so Auth.js retains its overloaded API.
+const uncachedAuth = nextAuth.auth;
+const cachedSession = cache(() => uncachedAuth());
+export const auth = ((...args: unknown[]) => {
+  if (args.length === 0) return cachedSession();
+  return (uncachedAuth as (...values: unknown[]) => unknown)(...args);
+}) as typeof uncachedAuth;

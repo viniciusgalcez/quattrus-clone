@@ -1,5 +1,7 @@
 "use server";
 
+import { createHash } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import {
@@ -19,6 +21,12 @@ import {
   parseCompanyItemImportRows,
   parsePeriodicityImportRows,
   parseThresholdImportRows,
+  KPI_CSV_HEADERS,
+  MEASUREMENT_CSV_HEADERS,
+  PERIODICITY_CSV_HEADERS,
+  THRESHOLD_CSV_HEADERS,
+  ACTION_PLAN_CSV_HEADERS,
+  COMPANY_ITEM_CSV_HEADERS,
   type ActionPlanImportRow,
   type CompanyItemImportRow,
   type KpiImportRow,
@@ -37,8 +45,11 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getGoalApproverIds, notifyUsers } from "@/lib/notifications";
 
 type SessionUser = { id: string; username: string; role: string };
-const MAX_CSV_BYTES = 15 * 1024 * 1024;
+const MAX_CSV_BYTES = (process.env.VERCEL ? 4 : 15) * 1024 * 1024;
+const MAX_IMPORT_ROWS = 200;
 const OLE_XLS_MAGIC = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1] as const;
+
+type TabularFile = { rows: string[][]; fileName: string; contentHash: string };
 
 export type ImportReport = {
   created: number;
@@ -48,30 +59,47 @@ export type ImportReport = {
 
 export type ImportState = { error?: string; report?: ImportReport };
 
-async function readTabularFile(formData: FormData): Promise<{ rows: string[][]; fileName: string }> {
+async function readTabularFile(formData: FormData, expectedHeaders: readonly string[]): Promise<TabularFile> {
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
     throw new Error("Selecione um arquivo CSV, TXT, XLS ou XLSX.");
   }
   if (file.size > MAX_CSV_BYTES) {
-    throw new Error("O arquivo deve ter no máximo 15 MB.");
+    throw new Error(`O arquivo deve ter no máximo ${process.env.VERCEL ? 4 : 15} MB.`);
   }
   const extension = file.name.split(".").pop()?.toLowerCase();
-  if (extension === "xlsx") return { rows: parseXlsxRows(new Uint8Array(await file.arrayBuffer())), fileName: file.name };
-  if (extension !== "csv" && extension !== "txt" && extension !== "xls") {
-    throw new Error("Use um arquivo CSV, TXT, XLS ou XLSX.");
-  }
   const bytes = new Uint8Array(await file.arrayBuffer());
-  // Legacy binary XLS (pre-2007 BIFF/OLE2) is deliberately not parsed: the
-  // only maintained JS libraries for that format (e.g. SheetJS's `xlsx` on
-  // npm) ship with known, unpatched prototype-pollution/ReDoS advisories —
-  // npm never received SheetJS's fixed builds, only their own CDN did. Since
-  // this endpoint parses untrusted uploads, that trade isn't worth it for a
-  // shrinking legacy format; ask for XLSX/CSV/TXT instead.
-  if (extension === "xls" && OLE_XLS_MAGIC.every((byte, index) => bytes[index] === byte)) {
-    throw new Error("XLS binário legado (Excel 97-2003) não é suportado por motivos de segurança. Salve a planilha como XLSX, CSV, TXT ou XLS tabulado.");
+  let rows: string[][];
+  if (extension === "xlsx") {
+    rows = parseXlsxRows(bytes);
+  } else {
+    if (extension !== "csv" && extension !== "txt" && extension !== "xls") {
+      throw new Error("Use um arquivo CSV, TXT, XLS ou XLSX.");
+    }
+    // Legacy binary XLS (pre-2007 BIFF/OLE2) is deliberately not parsed: the
+    // only maintained JS libraries for that format (e.g. SheetJS's `xlsx` on
+    // npm) ship with known, unpatched prototype-pollution/ReDoS advisories —
+    // npm never received SheetJS's fixed builds, only their own CDN did. Since
+    // this endpoint parses untrusted uploads, that trade isn't worth it for a
+    // shrinking legacy format; ask for XLSX/CSV/TXT instead.
+    if (extension === "xls" && OLE_XLS_MAGIC.every((byte, index) => bytes[index] === byte)) {
+      throw new Error("XLS binário legado (Excel 97-2003) não é suportado por motivos de segurança. Salve a planilha como XLSX, CSV, TXT ou XLS tabulado.");
+    }
+    rows = parseTabularText(new TextDecoder().decode(bytes));
   }
-  return { rows: parseTabularText(new TextDecoder().decode(bytes)), fileName: file.name };
+  const headers = rows[0]?.map((header) => header.trim().toLowerCase()) ?? [];
+  const missing = expectedHeaders.filter((header) => !headers.includes(header));
+  if (missing.length > 0) {
+    throw new Error(`Cabeçalho incompatível. Colunas ausentes: ${missing.join(", ")}.`);
+  }
+  if (new Set(headers).size !== headers.length) {
+    throw new Error("O cabeçalho contém colunas repetidas.");
+  }
+  if (rows.length - 1 > MAX_IMPORT_ROWS) {
+    throw new Error(`O lote deve ter no máximo ${MAX_IMPORT_ROWS} linhas de dados. Divida o arquivo em lotes menores.`);
+  }
+  rows[0] = headers;
+  return { rows, fileName: file.name, contentHash: createHash("sha256").update(bytes).digest("hex") };
 }
 
 /**
@@ -86,9 +114,9 @@ export async function importKpisCsv(_prevState: ImportState | null, formData: Fo
     return { error: "Muitas importações em pouco tempo. Aguarde um minuto e tente novamente." };
   }
 
-  let file: { rows: string[][]; fileName: string };
+  let file: TabularFile;
   try {
-    file = await readTabularFile(formData);
+    file = await readTabularFile(formData, KPI_CSV_HEADERS);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Arquivo inválido." };
   }
@@ -104,7 +132,7 @@ export async function importKpisCsv(_prevState: ImportState | null, formData: Fo
       continue;
     }
     try {
-      const created = await importKpiRow(row.data, user);
+      const created = await importKpiRow(row.data, user, file.contentHash, row.line);
       if (created) report.created++;
       else report.updated++;
     } catch (err) {
@@ -124,12 +152,13 @@ export async function importKpisCsv(_prevState: ImportState | null, formData: Fo
   });
   await prisma.importJob.create({ data: { type: "ITEM_CONTROLE", fileName: file.fileName, status: report.errors.length ? "CONCLUIDO_COM_ERROS" : "CONCLUIDO", created: report.created, updated: report.updated, errors: report.errors, completedAt: new Date(), requestedById: user.id } });
 
+  revalidatePath("/importacao-exportacao");
   revalidatePath("/metas");
   revalidatePath("/");
   return { report };
 }
 
-async function importKpiRow(row: KpiImportRow, user: SessionUser): Promise<boolean> {
+async function importKpiRow(row: KpiImportRow, user: SessionUser, contentHash: string, line: number): Promise<boolean> {
   let ownerId = user.id;
   if (row.dono && row.dono !== user.username) {
     if (user.role !== "ADMIN") {
@@ -184,8 +213,32 @@ async function importKpiRow(row: KpiImportRow, user: SessionUser): Promise<boole
     return false;
   }
 
-  await prisma.kpi.create({ data: { ...data, ownerId } });
-  return true;
+  // Stable across an exact retry, but distinct for another caller, file or row.
+  const id = `imp_${createHash("sha256")
+    .update(`kpi-v1\0${user.id}\0${contentHash}\0${line}`)
+    .digest("hex")}`;
+  const existing = await prisma.kpi.findUnique({ where: { id }, select: { id: true, ownerId: true } });
+  if (existing) {
+    if (existing.ownerId !== ownerId) throw new Error("Indicador importado pertence a outro usuário.");
+    await assertKpiEditable(id, user);
+    return false;
+  }
+  try {
+    await prisma.kpi.create({ data: { id, ...data, ownerId } });
+    return true;
+  } catch (error) {
+    // Concurrent retries can both miss the initial lookup. Only the exact
+    // deterministic ID collision is a successful replay; other unique errors
+    // must still fail this row.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      const replay = await prisma.kpi.findUnique({ where: { id }, select: { id: true, ownerId: true } });
+      if (replay?.ownerId === ownerId) {
+        await assertKpiEditable(id, user);
+        return false;
+      }
+    }
+    throw error;
+  }
 }
 
 /**
@@ -203,9 +256,9 @@ export async function importMeasurementsCsv(
     return { error: "Muitas importações em pouco tempo. Aguarde um minuto e tente novamente." };
   }
 
-  let file: { rows: string[][]; fileName: string };
+  let file: TabularFile;
   try {
-    file = await readTabularFile(formData);
+    file = await readTabularFile(formData, MEASUREMENT_CSV_HEADERS);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Arquivo inválido." };
   }
@@ -241,6 +294,7 @@ export async function importMeasurementsCsv(
   });
   await prisma.importJob.create({ data: { type: "MEDICAO", fileName: file.fileName, status: report.errors.length ? "CONCLUIDO_COM_ERROS" : "CONCLUIDO", created: report.created, updated: report.updated, errors: report.errors, completedAt: new Date(), requestedById: user.id } });
 
+  revalidatePath("/importacao-exportacao");
   revalidatePath("/metas");
   revalidatePath("/");
   return { report };
@@ -346,9 +400,9 @@ export async function importPeriodicitiesCsv(
     return { error: "Muitas importações em pouco tempo. Aguarde um minuto e tente novamente." };
   }
 
-  let file: { rows: string[][]; fileName: string };
+  let file: TabularFile;
   try {
-    file = await readTabularFile(formData);
+    file = await readTabularFile(formData, PERIODICITY_CSV_HEADERS);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Arquivo inválido." };
   }
@@ -394,6 +448,7 @@ export async function importPeriodicitiesCsv(
     },
   });
 
+  revalidatePath("/importacao-exportacao");
   revalidatePath("/metas");
   revalidatePath("/medicoes");
   return { report };
@@ -428,9 +483,9 @@ export async function importThresholdsCsv(
     return { error: "Muitas importações em pouco tempo. Aguarde um minuto e tente novamente." };
   }
 
-  let file: { rows: string[][]; fileName: string };
+  let file: TabularFile;
   try {
-    file = await readTabularFile(formData);
+    file = await readTabularFile(formData, THRESHOLD_CSV_HEADERS);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Arquivo inválido." };
   }
@@ -476,6 +531,7 @@ export async function importThresholdsCsv(
     },
   });
 
+  revalidatePath("/importacao-exportacao");
   revalidatePath("/metas");
   revalidatePath("/farol");
   revalidatePath("/");
@@ -520,9 +576,9 @@ export async function importActionPlansCsv(
     return { error: "Muitas importações em pouco tempo. Aguarde um minuto e tente novamente." };
   }
 
-  let file: { rows: string[][]; fileName: string };
+  let file: TabularFile;
   try {
-    file = await readTabularFile(formData);
+    file = await readTabularFile(formData, ACTION_PLAN_CSV_HEADERS);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Arquivo inválido." };
   }
@@ -568,6 +624,7 @@ export async function importActionPlansCsv(
     },
   });
 
+  revalidatePath("/importacao-exportacao");
   revalidatePath("/metas");
   revalidatePath("/tarefas");
   revalidatePath("/");
@@ -616,9 +673,9 @@ export async function importCompanyItemsCsv(
     return { error: "Muitas importações em pouco tempo. Aguarde um minuto e tente novamente." };
   }
 
-  let file: { rows: string[][]; fileName: string };
+  let file: TabularFile;
   try {
-    file = await readTabularFile(formData);
+    file = await readTabularFile(formData, COMPANY_ITEM_CSV_HEADERS);
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Arquivo inválido." };
   }
@@ -663,6 +720,7 @@ export async function importCompanyItemsCsv(
     },
   });
 
+  revalidatePath("/importacao-exportacao");
   revalidatePath("/empresa");
   revalidatePath("/preferencias");
   revalidatePath("/farol");

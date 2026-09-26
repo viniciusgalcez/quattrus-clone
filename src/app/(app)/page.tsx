@@ -43,20 +43,27 @@ export default async function Home({
     viewedUserId = queryUserId;
   }
 
-  const viewedUser = await prisma.user.findUnique({ where: { id: viewedUserId } });
-  if (!viewedUser || !viewedUser.active) notFound();
   const period = currentPeriod();
   const isOwnPanel = viewedUserId === session.user.id;
-  const preference = await prisma.userPreference.findUnique({
-    where: { userId: session.user.id },
-    select: { showTeamReds: true },
-  });
+  const showTeamReds = isOwnPanel && session.user.showTeamReds;
 
-  const kpis = await prisma.kpi.findMany({
-    where: { ownerId: viewedUserId, archivedAt: null },
-    include: { measurements: { orderBy: { period: "desc" }, take: 6 } },
-    orderBy: { priority: "asc" },
-  });
+  // These reads are independent. Starting them together avoids paying one
+  // database round trip after another on the initial dashboard render.
+  const [viewedUser, kpis, planosConcluidos, fcaOwnerIds] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: viewedUserId },
+      select: { name: true, active: true },
+    }),
+    prisma.kpi.findMany({
+      relationLoadStrategy: "join",
+      where: { ownerId: viewedUserId, archivedAt: null },
+      include: { measurements: { orderBy: { period: "desc" }, take: 6 } },
+      orderBy: { priority: "asc" },
+    }),
+    prisma.actionPlan.count({ where: { kpi: { ownerId: viewedUserId }, status: "CONCLUIDO" } }),
+    showTeamReds ? exportableOwnerIds(session.user) : Promise.resolve([viewedUserId]),
+  ]);
+  if (!viewedUser || !viewedUser.active) notFound();
 
   let green = 0;
   let yellow = 0;
@@ -81,17 +88,12 @@ export default async function Home({
     ? ((green * 10 + yellow * 5) / totalComMedicao).toFixed(1)
     : "0.0";
 
-  const showTeamReds = isOwnPanel && (preference?.showTeamReds ?? true);
-  const fcaOwnerIds = showTeamReds ? await exportableOwnerIds(session.user) : [viewedUserId];
-
-  const [planosConcluidos, fcaAbertos] = await Promise.all([
-    prisma.actionPlan.count({ where: { kpi: { ownerId: viewedUserId }, status: "CONCLUIDO" } }),
-    prisma.actionPlan.findMany({
-      where: { kpi: { ownerId: { in: fcaOwnerIds } }, status: "ABERTO" },
-      include: { measurement: true, kpi: { include: { owner: { select: { id: true, name: true } } } } },
-      orderBy: { createdAt: "desc" },
-    }),
-  ]);
+  const fcaAbertos = await prisma.actionPlan.findMany({
+    relationLoadStrategy: "join",
+    where: { kpi: { ownerId: { in: fcaOwnerIds } }, status: "ABERTO" },
+    include: { measurement: true, kpi: { include: { owner: { select: { id: true, name: true } } } } },
+    orderBy: { createdAt: "desc" },
+  });
   const fcaPendentes = fcaAbertos.length;
 
   const periodSet = new Set<string>();
@@ -144,35 +146,34 @@ export default async function Home({
   );
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="dashboard-hero flex flex-wrap items-end justify-between gap-5 px-5 py-5 sm:px-7 sm:py-6">
-        <div className="relative z-[1]">
-          <div className="dashboard-kicker">Capri Gestiona · cockpit de performance</div>
-          <h1 className="mt-1 font-display text-[25px] font-bold tracking-[-0.02em] text-[var(--color-ink-900)]">
+    <div className="dashboard-page mx-auto flex max-w-[1480px] flex-col gap-5">
+      <div className="dashboard-hero flex flex-wrap items-end justify-between gap-5 pb-5 pt-2 sm:pb-7 sm:pt-3">
+        <div>
+          <div className="dashboard-kicker">Painel de indicadores <span aria-hidden="true">/</span> {periodLabel(period)}</div>
+          <h1 className="mt-3 font-display text-[clamp(28px,3vw,38px)] font-semibold tracking-[-0.035em] text-[var(--color-ink-900)]">
             {isOwnPanel ? "Seu painel" : `Painel de ${viewedUser?.name ?? "usuário"}`}
           </h1>
-          <p className="mt-1 text-[13px] text-[var(--color-ink-500)]">
-            Acompanhamento de indicadores — {periodLabel(period)}
+          <p className="mt-1.5 text-[13px] text-[var(--color-ink-500)]">
+            Resultado do ciclo, desvios e planos de ação em um só lugar.
           </p>
         </div>
         {!isOwnPanel && (
           <Link
             href="/"
-            className="dashboard-back-link btn relative z-[1] border-[#b8cbe5] bg-white/70 text-[var(--color-brand-700)]"
+            className="dashboard-back-link btn"
           >
             <ArrowLeft className="h-3.5 w-3.5" /> Voltar ao meu painel
           </Link>
         )}
       </div>
 
-      {/* "Como estou" — one hero figure, then the distribution that explains it. */}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <section className="card metric-card min-w-0 flex flex-col gap-4 p-5 lg:col-span-2" style={{ "--metric-color": "var(--color-brand-600)" } as React.CSSProperties}>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <section className="dashboard-panel metric-card min-w-0 flex flex-col gap-5 p-5 sm:p-7 lg:col-span-2">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h2 className="field-label">Score do ciclo</h2>
-              <div className="mt-1 flex items-baseline gap-1.5">
-                <span className="stat-value stat-hero text-[var(--color-brand-700)]">{score}</span>
+              <h2 className="dashboard-section-label">Score do ciclo</h2>
+              <div className="mt-2 flex items-baseline gap-1.5">
+                <span className="stat-value stat-hero text-[var(--color-ink-900)]">{score}</span>
                 <span className="font-mono-num text-[15px] font-semibold text-[var(--color-ink-400)]">
                   /10
                 </span>
@@ -182,7 +183,7 @@ export default async function Home({
               </p>
             </div>
             <div className="text-right">
-              <h2 className="field-label">Metas atingidas</h2>
+              <h2 className="dashboard-section-label">Metas atingidas</h2>
               <div className="stat-value mt-1 text-[32px] text-[var(--color-ink-900)]">
                 {metasAtingidasPct}%
               </div>
@@ -210,7 +211,7 @@ export default async function Home({
             <JumpToSection
               targetId="desvios"
               aria-label={`${fcaPendentes} plano(s) de ação em aberto. Ver indicadores fora da meta.`}
-              className="card tile-urgent group flex flex-1 flex-col justify-between p-5 transition-shadow"
+              className="dashboard-panel tile-urgent group flex flex-1 flex-col justify-between p-5 sm:p-6"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -236,7 +237,7 @@ export default async function Home({
               </span>
             </JumpToSection>
           ) : (
-            <div className="card tile-calm status-live flex flex-1 flex-col justify-between p-5">
+            <div className="dashboard-panel tile-calm flex flex-1 flex-col justify-between p-5 sm:p-6">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="field-label text-[var(--color-green-600)]">FCA pendentes</div>
@@ -255,10 +256,8 @@ export default async function Home({
             </div>
           )}
 
-          <div className="card flex items-center gap-3 p-4">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-green-100)]">
-              <ClipboardCheck className="h-4 w-4 text-[var(--color-green-600)]" aria-hidden="true" />
-            </div>
+          <div className="dashboard-panel flex items-center gap-3 px-5 py-4">
+            <ClipboardCheck className="h-5 w-5 shrink-0 text-[var(--color-green-600)]" aria-hidden="true" />
             <div>
               <div className="field-label">Planos concluídos</div>
               <div className="stat-value text-[18px] text-[var(--color-ink-900)]">
@@ -269,8 +268,8 @@ export default async function Home({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-5">
-        <section id="desvios" className="card min-w-0 flex flex-col lg:col-span-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+        <section id="desvios" className="dashboard-panel min-w-0 flex flex-col lg:col-span-2">
           <div className="card-header">
             <span>Precisa de atenção</span>
             {desviosOrdenados.length > 0 && (
@@ -294,7 +293,7 @@ export default async function Home({
                 <li key={item.kpiId} className="border-b border-[var(--color-border)] last:border-0">
                   <Link
                     href={`/fca/${item.measurementId}`}
-                    className={`${STATUS_RAIL_CLASS[item.status]} flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-[var(--color-brand-50)]`}
+                    className={`${STATUS_RAIL_CLASS[item.status]} flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-[var(--color-surface-muted)]`}
                   >
                     <div className="min-w-0">
                       <div className="truncate text-[13px] font-medium text-[var(--color-ink-900)]">
@@ -328,7 +327,7 @@ export default async function Home({
           )}
         </section>
 
-        <section className="card min-w-0 flex flex-col lg:col-span-3">
+        <section className="dashboard-panel min-w-0 flex flex-col lg:col-span-3">
           <div className="card-header">
             <span>Acompanhamento mensal</span>
             <span className="text-[11px] font-medium text-[var(--color-ink-400)]">
@@ -342,7 +341,7 @@ export default async function Home({
       </div>
 
       {kpis.length === 0 && (
-        <div className="card">
+        <div className="dashboard-panel">
           <EmptyState
             icon={Target}
             title="Nenhum indicador cadastrado"

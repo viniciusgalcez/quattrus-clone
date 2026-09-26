@@ -30,6 +30,7 @@ export function ImportCsvForm({
         <SubmitButton pendingText="Importando…">Importar</SubmitButton>
       </div>
       <p className="text-[11px] text-[var(--color-ink-400)]">{fileFieldHint}</p>
+      <p className="text-[11px] text-[var(--color-ink-400)]">Na versão online, envie até 200 linhas e 4 MB por arquivo.</p>
 
       {state?.report && (
         <div className="flex flex-col gap-2 rounded-lg border border-[var(--color-border)] p-3">

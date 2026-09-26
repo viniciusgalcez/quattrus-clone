@@ -2,7 +2,6 @@
 import { Header } from "@/components/layout/Header";
 import { auth } from "@/lib/auth";
 import { MobileSidebarToggle } from "@/components/layout/MobileSidebarToggle";
-import { prisma } from "@/lib/prisma";
 
 export default async function AppLayout({
   children,
@@ -12,14 +11,8 @@ export default async function AppLayout({
   const session = await auth();
   const isManager = session?.user.role === "GESTOR" || session?.user.role === "ADMIN";
   const isAdmin = session?.user.role === "ADMIN";
-  const [preference, account] = session?.user.id
-    ? await Promise.all([
-      prisma.userPreference.findUnique({ where: { userId: session.user.id }, select: { theme: true, density: true } }),
-      prisma.user.findUnique({ where: { id: session.user.id }, select: { avatarUpdatedAt: true } }),
-    ])
-    : [null, null];
-  const theme = preference?.theme === "light" ? "light" : "dark";
-  const density = preference?.density === "compact" ? "compact" : "comfortable";
+  const theme = session?.user.theme ?? "dark";
+  const density = session?.user.density ?? "comfortable";
 
   return (
     <div data-theme={theme} data-density={density} className="app-theme flex h-dvh min-h-dvh overflow-hidden bg-[var(--color-bg)] text-[var(--color-ink-900)]">
@@ -29,7 +22,7 @@ export default async function AppLayout({
           the whole page — to overflow horizontally instead of scrolling
           internally. */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <Header user={session?.user ? { ...session.user, avatarUpdatedAt: account?.avatarUpdatedAt } : undefined}>
+        <Header user={session?.user}>
           <MobileSidebarToggle>
             <Sidebar isManager={isManager} isAdmin={isAdmin} permissions={session?.user.permissions ?? []} className="flex" />
           </MobileSidebarToggle>

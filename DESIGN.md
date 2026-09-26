@@ -1,26 +1,69 @@
+---
+version: alpha
+colors:
+  background: "#f3f1ec"
+  surface: "#fffefa"
+  ink: "#292c2b"
+  graphite: "#272b2a"
+  border: "#dedbd3"
+  primary: "#815139"
+  action: "#815139"
+  focus: "#a14b2f"
+typography:
+  display:
+    fontFamily: "Sora, Segoe UI, sans-serif"
+  body:
+    fontFamily: "Inter, Segoe UI, sans-serif"
+  data:
+    fontFamily: "JetBrains Mono, Cascadia Mono, monospace"
+rounded:
+  panel: "3px"
+  control: "7px"
+spacing:
+  xs: "4px"
+  sm: "8px"
+  md: "12px"
+  lg: "20px"
+  xl: "28px"
+---
+
 # Capri Gestiona design context
 
-## Direction
+## Overview
 
-Internal performance cockpit for Capricórnio Têxtil S/A. The interface should feel precise, calm and useful during a results meeting: strong hierarchy, dense but breathable data, and a clear visual distinction between progress and risk.
+The authenticated product is an industrial management desk for Capricórnio Têxtil: useful in a results meeting and in daily indicator review. Its signature is a graphite navigation rail beside a warm, ruled work surface. The supplied institutional logo at `public/capricornio-logo.png` retains its original pixels, square proportions and blue; the 80-year campaign art is not a product logo.
 
-## Visual language
+This first vertical slice covers the authenticated shell and the initial dashboard. Other routes still have legacy component treatments and should migrate through shared primitives as they are touched. Never use decorative indigo/blue gradients, glow, glass panels, excessive cards or invented metrics.
 
-- Deep navy navigation with bright blue interaction color.
-- Cobalt, cyan and mint for progress; coral and amber only for attention states.
-- Rounded corners stay restrained at 8-10px and repeated rows do the visual work.
-- Use Sora for display labels, Inter for reading, and JetBrains Mono for values.
-- Motion is short and functional: chart reveal, status pulse, hover lift and skeleton shimmer.
-- Dark mode uses a blue-black control-room palette: layered navy surfaces, steel dividers, bright but restrained cobalt focus, and semantic mint, amber and coral status colors. It is a first-class theme, never a light screen with inverted text.
+## Colors
 
-## Token ownership
+`src/app/globals.css` is the runtime source of truth (Model B). The frontmatter records visual intent; CSS variables carry the values consumed by components. The light mapping is `background → --color-bg`, `surface → --color-surface`, `ink → --color-ink-900`, `graphite → --color-shell`, `border → --color-border`, `action → --color-brand-600`, and `focus → --color-focus`. Dark mode maps the same semantic variables to graphite surfaces and readable warm text; it does not invert fixed brand artwork.
 
-- `src/app/globals.css` owns the runtime color tokens for both themes. `--color-surface`, `--color-surface-muted`, and `--color-surface-elevated` are the only shared surface layers.
-- Product screens must consume those semantic tokens rather than fixed white or gray backgrounds, so theme changes remain complete and predictable.
+`--color-brand-*` names the product interaction family for compatibility with existing routes, not the institutional blue. The blue in the logo is preserved. Quattrus domain blue remains valid when it denotes a functional status. Green, amber, red and critical tones retain status meaning and always accompany text or values. Chart series are neutral and copper rather than decorative blue.
 
-## Interaction rules
+## Typography
 
-- Every data-heavy view exposes a clear next action.
-- Status is never conveyed by color alone; labels and values remain visible.
-- Prefer compact icon actions with tooltips for repeated controls.
-- Keep mobile layouts single-column and preserve stable table scrolling.
+Sora sets restrained headings, Inter carries controls and reading text, and JetBrains Mono aligns scores and measured values. The dashboard uses one large score figure, with uppercase small labels reserved for true section or metric headings. Body text stays readable at compact density.
+
+## Layout
+
+Desktop uses a 248px navigation rail, a 68px header and a document work area. Mobile replaces the rail with a modal navigation drawer and keeps the same route and permission set. The dashboard begins with a ruled page heading, then places cycle score and distribution before pending FCA and monthly comparison. Narrow screens use one column; content keeps natural document scrolling inside the application main region.
+
+## Elevation & Depth
+
+The shell and dashboard use borders and surface contrast for hierarchy. Dashboard panels are flat with a 3px radius; status rails and one short copper rule identify the score and attention states. Avoid hover lift and stacked floating shadows on these surfaces.
+
+## Shapes
+
+Panels are nearly square; controls retain a small radius for comfortable hit targets. The institutional logo remains a square image with its built-in breathing room. Rounded status dots keep their established Quattrus meaning.
+
+## Components
+
+The shared `Sidebar`, `Header` and `MobileSidebarToggle` own shell navigation. `DashboardCharts` and `StatusMeter` own summary graphics and keep textual equivalents. `--color-scrollbar-*` applies to every application scroll surface. Focus uses `--color-focus`; reduced motion removes decorative transitions. Density and light/dark preferences retain their current behavior.
+
+## Do's and Don'ts
+
+- Keep tools near the data they act on and preserve server-owned permissions, routes, and actions.
+- Use status labels and values alongside color.
+- Keep the logo intact and reserve blue decoration for verified domain meaning.
+- Do not add marketing copy, gratuitous animation, gradient heroes or repeated icon cards to operational views.

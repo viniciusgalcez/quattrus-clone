@@ -20,18 +20,12 @@ export type ChartPoint = {
   Realizado: number;
 };
 
-/**
- * Mirrors --chart-previsto / --chart-realizado in globals.css. Kept as literals
- * because SVG presentation attributes resolve `var()` inconsistently across
- * browsers, and a chart that silently loses its fill is worse than a duplicated
- * hex. Validated: CVD separation ΔE 27.2 (protan) / 26.9 (tritan), normal-vision
- * ΔE 27.6, both series >= 3:1 against the card surface.
- */
+// SVG presentation attributes use stable literals; mirror the chart tokens in globals.css.
 const SERIES = {
-  Previsto: "#8f8fa8",
-  Realizado: "#3d3a8c",
-  grid: "#eeeef5",
-  cursor: "#f5f4fc",
+  Previsto: "#8a8377",
+  Realizado: "#9b5938",
+  grid: "#dedbd3",
+  cursor: "#f3f1ec",
 } as const;
 
 const nf = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
@@ -118,13 +112,13 @@ export function DashboardCharts({ data }: { data: ChartPoint[] }) {
             dataKey="name"
             axisLine={false}
             tickLine={false}
-            tick={{ fill: "#6b6b82", fontSize: 12 }}
+            tick={{ fill: "#777d78", fontSize: 12 }}
           />
           <YAxis
             axisLine={false}
             tickLine={false}
             width={52}
-            tick={{ fill: "#6b6b82", fontSize: 12 }}
+            tick={{ fill: "#777d78", fontSize: 12 }}
             tickFormatter={(value: number) => nfCompact.format(value)}
           />
           <Tooltip cursor={{ fill: SERIES.cursor }} content={ChartTooltip} />
@@ -133,7 +127,7 @@ export function DashboardCharts({ data }: { data: ChartPoint[] }) {
             height={28}
             iconType="square"
             iconSize={9}
-            wrapperStyle={{ fontSize: "12px", color: "#6b6b82" }}
+            wrapperStyle={{ fontSize: "12px", color: "#777d78" }}
           />
           <Bar dataKey="Previsto" fill={SERIES.Previsto} maxBarSize={24} radius={[4, 4, 0, 0]} />
           <Bar dataKey="Realizado" fill={SERIES.Realizado} maxBarSize={24} radius={[4, 4, 0, 0]} />

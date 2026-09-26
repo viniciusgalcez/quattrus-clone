@@ -7,6 +7,7 @@ This contract applies to authenticated operational routes. The application suppo
 ## Shared interface rules
 
 - The application shell owns navigation, theme, density and the global notification region.
+- The authenticated shell preserves the same permission-filtered destinations on desktop and mobile. Mobile navigation opens as a modal drawer with Escape, focus containment and return focus; preferences, notifications and sign-out remain reachable in the header.
 - Runtime surface and color behavior is owned by `src/app/globals.css`; routes use semantic tokens instead of hard-coded theme colors.
 - Native selects remain platform-owned controls. Their closed state follows the shared `input-field` style; no route assumes control of the system option popup.
 - Native date, time and month inputs are platform-owned controls for pt-BR internal use. Server actions own parsing, validation and permission checks.

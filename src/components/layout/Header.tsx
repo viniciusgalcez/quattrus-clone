@@ -1,4 +1,4 @@
-import { LogOut } from "lucide-react";
+import { LogOut, Settings2 } from "lucide-react";
 import { signOut } from "@/lib/auth";
 import { NotificationBell } from "@/components/NotificationBell";
 import Image from "next/image";
@@ -29,18 +29,19 @@ export function Header({ user, children }: { user: HeaderUser, children?: React.
     : null;
 
   return (
-    <div
-      className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-white/10 px-3 text-white shadow-sm sm:px-5"
-      style={{ background: "var(--color-header)" }}
-    >
-      <div className="flex min-w-0 items-center">
+    <header className="shell-header flex h-[68px] shrink-0 items-center justify-between gap-2 px-3 sm:px-6">
+      <div className="flex min-w-0 items-center gap-3">
         {children}
+        <span className="hidden text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--color-ink-500)] sm:inline">Gestão de desempenho</span>
       </div>
-      <div className="flex min-w-0 items-center justify-end gap-2 sm:gap-3">
+      <div className="flex min-w-0 items-center justify-end gap-1 sm:gap-2">
         <NotificationBell />
-        <Link href="/preferencias" title="Preferências" className="hidden rounded-md px-2 py-1 text-xs text-white/75 transition-colors hover:bg-white/10 hover:text-white md:inline">Preferências</Link>
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="relative flex h-7 w-7 overflow-hidden rounded-full bg-white/15 text-[10.5px] font-bold text-white ring-1 ring-white/30">
+        <Link href="/preferencias" title="Preferências" aria-label="Preferências" className="shell-header-action gap-2 px-2">
+          <Settings2 className="h-4 w-4" aria-hidden="true" />
+          <span className="hidden text-[12px] font-medium lg:inline">Preferências</span>
+        </Link>
+        <div className="ml-1 flex min-w-0 items-center gap-2 border-l border-[var(--color-border)] pl-3">
+          <div className="relative flex h-8 w-8 overflow-hidden rounded-full bg-[var(--color-neutral-100)] text-[10.5px] font-bold text-[var(--color-ink-700)] ring-1 ring-[var(--color-border-strong)]">
             {avatarUrl ? (
               <Image src={avatarUrl} alt="" fill sizes="28px" className="object-cover" unoptimized />
             ) : (
@@ -49,7 +50,7 @@ export function Header({ user, children }: { user: HeaderUser, children?: React.
               </span>
             )}
           </div>
-          <span className="hidden max-w-[150px] truncate text-[12.5px] font-semibold lg:inline">{displayName}</span>
+          <span className="hidden max-w-[150px] truncate text-[12.5px] font-semibold text-[var(--color-ink-900)] md:inline">{displayName}</span>
         </div>
         <form noValidate
           action={async () => {
@@ -60,12 +61,13 @@ export function Header({ user, children }: { user: HeaderUser, children?: React.
           <button
             type="submit"
             title="Sair"
-            className="flex h-7 w-7 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/15 hover:text-white"
+            aria-label="Sair"
+            className="shell-header-action"
           >
             <LogOut className="h-4 w-4" />
           </button>
         </form>
       </div>
-    </div>
+    </header>
   );
 }

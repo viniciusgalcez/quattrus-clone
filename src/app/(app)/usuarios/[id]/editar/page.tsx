@@ -2,6 +2,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { EditarUsuarioForm } from "@/components/EditarUsuarioForm";
+import { assertPageModule } from "@/lib/module-access";
 import { FacilitacaoForm } from "@/components/FacilitacaoForm";
 import { SubordinacaoForm } from "@/components/SubordinacaoForm";
 
@@ -12,6 +13,7 @@ export default async function EditarUsuarioPage({
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  assertPageModule(session.user, "users");
   if (session.user.role !== "ADMIN") notFound();
 
   const { id } = await params;
