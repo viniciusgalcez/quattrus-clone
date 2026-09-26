@@ -4,8 +4,16 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Pooled connection (e.g. Supabase's port 6543/pgbouncer) — what the app
+  // uses at runtime, since serverless functions open/close a connection per
+  // request and a direct Postgres connection can't absorb that concurrency.
+  url       = env("DATABASE_URL")
+  // Direct connection (e.g. port 5432) — used only by `prisma migrate
+  // deploy`/`db push`, which need a real connection, not a pooled one.
+  // Optional: falls back to DATABASE_URL when unset, which is fine for the
+  // local Docker Postgres setup (no pooler in front of it).
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {

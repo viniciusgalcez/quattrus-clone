@@ -30,6 +30,9 @@ services:
       target: migrator
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-quattrus}:${POSTGRES_PASSWORD:-quattrus}@postgres:5432/${POSTGRES_DB:-quattrus}
+      # No pooler in front of the local compose Postgres, so the direct and
+      # runtime connection strings are the same one here (see schema.prisma).
+      - DIRECT_URL=postgresql://${POSTGRES_USER:-quattrus}:${POSTGRES_PASSWORD:-quattrus}@postgres:5432/${POSTGRES_DB:-quattrus}
     depends_on:
       postgres:
         condition: service_healthy
@@ -44,6 +47,7 @@ services:
     environment:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://${POSTGRES_USER:-quattrus}:${POSTGRES_PASSWORD:-quattrus}@postgres:5432/${POSTGRES_DB:-quattrus}
+      - DIRECT_URL=postgresql://${POSTGRES_USER:-quattrus}:${POSTGRES_PASSWORD:-quattrus}@postgres:5432/${POSTGRES_DB:-quattrus}
       # Required by NextAuth v5. Sourced from the host environment so compose
       # fails loudly here instead of every request 500ing at runtime.
       - "AUTH_SECRET=${AUTH_SECRET:?AUTH_SECRET is required - generate one with `openssl rand -base64 32`}"

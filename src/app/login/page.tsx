@@ -1,8 +1,10 @@
-﻿import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import Image from "next/image";
 import { AuthError } from "next-auth";
 import { signIn } from "@/lib/auth";
+import { CapricornioLogo } from "@/components/CapricornioLogo";
 import { SubmitButton } from "@/components/SubmitButton";
+import { PasswordInput } from "@/components/PasswordInput";
 
 async function login(formData: FormData) {
   "use server";
@@ -20,6 +22,29 @@ async function login(formData: FormData) {
   }
 }
 
+// Faint noise, layered over the hero photo with mix-blend-mode: overlay, to
+// mask the softness of an upscaled source image instead of leaving it
+// visibly blurry. Purely cosmetic — swap the source photo for a
+// higher-resolution one and this can go.
+const GRAIN_BACKGROUND =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")";
+
+// Same thread motif as the hero photo, reduced to a near-invisible line
+// pattern for the form side — ties the two panels together without a
+// gradient hero or decorative card, per DESIGN.md.
+const THREAD_BACKGROUND =
+  "repeating-linear-gradient(115deg, var(--color-border) 0px, var(--color-border) 1px, transparent 1px, transparent 34px)";
+
+function HeroGrain() {
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 opacity-[0.05] mix-blend-overlay"
+      style={{ backgroundImage: GRAIN_BACKGROUND }}
+    />
+  );
+}
+
 export default async function LoginPage({
   searchParams,
 }: {
@@ -28,47 +53,106 @@ export default async function LoginPage({
   const { error } = await searchParams;
 
   return (
-    <div className="flex min-h-screen">
-      <div className="relative hidden w-[42%] flex-col justify-between overflow-hidden bg-[var(--color-brand-900)] p-10 lg:flex">
+    <div className="flex min-h-screen flex-col bg-[var(--color-canvas)] lg:flex-row">
+      {/* Mobile-only compact hero band — keeps the brand photo/tagline instead
+          of leaving the screen blank above the form. Hidden on lg, where the
+          full-height panel below takes over. */}
+      <div className="relative flex h-[196px] shrink-0 flex-col justify-between overflow-hidden bg-[#272b2a] p-5 lg:hidden">
         <Image
-          src="/login-brand.png"
+          src="/login-textile-hero.png"
           alt=""
           fill
+          sizes="100vw"
           priority
-          className="pointer-events-none object-cover object-left"
+          className="pointer-events-none object-cover object-[center_20%] contrast-[1.06] saturate-[0.92]"
         />
-        {/* Bottom hint so the footer caption stays legible over the art. */}
+        <HeroGrain />
         <div
           className="pointer-events-none absolute inset-0"
           style={{
-            backgroundImage: "linear-gradient(180deg, rgba(9,20,50,0) 82%, rgba(9,20,50,0.45) 100%)",
+            background:
+              "linear-gradient(180deg, rgba(22,24,23,0.55) 0%, rgba(22,24,23,0.25) 45%, rgba(22,24,23,0.82) 100%)",
           }}
         />
         <div className="relative flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 font-display text-[15px] font-bold text-white backdrop-blur">
-            G
+          <CapricornioLogo size={34} className="border border-white/20 shadow-sm" priority />
+          <div>
+            <p className="font-display text-[14px] font-bold leading-tight text-white">Capri Gestiona</p>
+            <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-white/55">Capricórnio Têxtil</p>
           </div>
-          <span className="font-display text-[17px] font-bold text-white">Capri Gestiona</span>
         </div>
-        <div className="relative">
-          <p className="font-display text-[26px] font-semibold leading-snug text-white">
+        <div className="relative border-l-2 border-[#a46b4d] pl-3">
+          <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#d4a482]">Gestão de performance</p>
+          <p className="mt-1 font-display text-[15px] font-semibold leading-[1.2] text-white">
             Indicadores no alvo, causas claras, ações no prazo.
           </p>
-          <p className="mt-3 max-w-[360px] text-[13px] text-white/60">
-            Gestão de metas, planos de ação e hierarquia de equipe em um único painel.
-          </p>
         </div>
-        <p className="relative text-[11px] text-white/40">Capricórnio Têxtil S.A</p>
       </div>
 
-      <div className="flex flex-1 items-center justify-center p-6">
+      {/* Desktop hero panel */}
+      <div className="relative hidden w-[46%] flex-col justify-between overflow-hidden bg-[#272b2a] p-12 lg:flex xl:p-14">
+        <Image
+          src="/login-textile-hero.png"
+          alt=""
+          fill
+          sizes="46vw"
+          priority
+          className="pointer-events-none object-cover object-center contrast-[1.06] saturate-[0.92]"
+        />
+        <HeroGrain />
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(180deg, rgba(22,24,23,0.32) 0%, rgba(22,24,23,0.12) 42%, rgba(22,24,23,0.9) 100%)",
+          }}
+        />
+        <div className="relative flex items-center gap-3">
+          <CapricornioLogo size={44} className="border border-white/20 shadow-sm" priority />
+          <div>
+            <p className="font-display text-[17px] font-bold leading-tight text-white">Capri Gestiona</p>
+            <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/55">
+              Capricórnio Têxtil
+            </p>
+          </div>
+        </div>
+
+        <div className="relative max-w-[460px] border-l-2 border-[#a46b4d] pl-6">
+          <p className="mb-4 text-[10px] font-bold uppercase tracking-[0.24em] text-[#d4a482]">
+            Gestão de performance
+          </p>
+          <p className="font-display text-[34px] font-semibold leading-[1.12] tracking-[-0.025em] text-white xl:text-[38px]">
+            Indicadores no alvo, causas claras, ações no prazo.
+          </p>
+          <p className="mt-5 max-w-[390px] text-[13px] leading-relaxed text-white/68">
+            Metas, resultados e planos de ação conectados em uma visão objetiva da operação.
+          </p>
+        </div>
+
+        <div className="relative flex items-center justify-between border-t border-white/15 pt-4 text-[10px] uppercase tracking-[0.14em] text-white/45">
+          <span>Capricórnio Têxtil S.A.</span>
+          <span>Decisões orientadas por dados</span>
+        </div>
+      </div>
+
+      <div
+        className="relative flex flex-1 flex-col items-center justify-start p-6 pt-9 lg:justify-center lg:pt-6"
+        style={{ backgroundImage: THREAD_BACKGROUND }}
+      >
         <div className="w-full max-w-[360px]">
-          <div className="mb-8 lg:hidden">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--color-brand-600)] font-display text-[15px] font-bold text-white">
-              G
+          <div className="mb-7 hidden lg:block">
+            <div className="flex items-center gap-3">
+              <CapricornioLogo size={40} className="border border-[var(--color-border-strong)]" priority />
+              <div>
+                <p className="font-display text-sm font-bold text-[var(--color-ink-900)]">Capri Gestiona</p>
+                <p className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.15em] text-[var(--color-ink-500)]">
+                  Capricórnio Têxtil
+                </p>
+              </div>
             </div>
           </div>
 
+          <div className="mb-3 h-[2px] w-9 bg-[#a46b4d]" aria-hidden="true" />
           <h1 className="font-display text-[22px] font-bold text-[var(--color-ink-900)]">Entrar</h1>
           <p className="mt-1 text-[12.5px] text-[var(--color-ink-500)]">
             Acesse sua conta para ver o painel de indicadores.
@@ -82,13 +166,14 @@ export default async function LoginPage({
                 name="username"
                 autoFocus
                 required
+                autoComplete="username"
                 placeholder="ex: ana.diretora"
                 className="input-field"
               />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="field-label">Senha</label>
-              <input type="password" name="password" required className="input-field" />
+              <PasswordInput name="password" autoComplete="current-password" required />
             </div>
 
             {error === "inactive" && (
@@ -114,6 +199,10 @@ export default async function LoginPage({
               </div>
             )}
           </form>
+
+          <p className="mt-6 text-center text-[11px] text-[var(--color-ink-400)]">
+            Precisa de acesso? Fale com o administrador da sua área.
+          </p>
         </div>
       </div>
     </div>
