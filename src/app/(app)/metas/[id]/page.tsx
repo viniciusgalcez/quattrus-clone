@@ -83,7 +83,7 @@ export default async function KpiDetailPage({
   });
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 sm:gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <Link
@@ -92,7 +92,7 @@ export default async function KpiDetailPage({
           >
             <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" /> {backLabel}
           </Link>
-          <h1 className="page-title">{kpi.name}</h1>
+          <h1 className="page-title break-words">{kpi.name}</h1>
         </div>
         {isOwnerOrAdmin && (
           <div className="flex flex-wrap items-center gap-2">
@@ -106,7 +106,7 @@ export default async function KpiDetailPage({
 
       <ForecastRequestForm kpiId={kpi.id} period={currentPeriod()} />
 
-      <div className="card grid grid-cols-2 gap-4 p-5 sm:grid-cols-4">
+      <div className="card grid grid-cols-1 gap-4 p-4 min-[440px]:grid-cols-2 sm:grid-cols-4 sm:p-5">
         <div>
           <div className="field-label">Responsável</div>
           <div className="mt-1 text-[13px] text-[var(--color-ink-900)]">{kpi.owner.name}</div>
@@ -124,7 +124,7 @@ export default async function KpiDetailPage({
           <div className="mt-1 text-[13px] text-[var(--color-ink-900)]">{DIRECTION_LABEL[kpi.direction]}</div>
         </div>
         {kpi.description && (
-          <p className="col-span-2 sm:col-span-4 text-[12.5px] text-[var(--color-ink-500)]">
+          <p className="min-[440px]:col-span-2 sm:col-span-4 text-[12.5px] leading-relaxed text-[var(--color-ink-500)] break-words">
             {kpi.description}
           </p>
         )}
@@ -132,7 +132,7 @@ export default async function KpiDetailPage({
 
       <div className="card flex flex-col">
         <div className="card-header">Histórico</div>
-        <div className="h-[280px] p-4">
+        <div className="h-[230px] p-2 sm:h-[280px] sm:p-4">
           <KpiBandChart data={bandData} />
         </div>
       </div>
@@ -140,7 +140,7 @@ export default async function KpiDetailPage({
       <div className="card overflow-hidden">
         <div className="card-header">Medições</div>
         <div className="table-scroll">
-          <table className="table-modern">
+          <table className="table-modern responsive-stack-table">
             <caption className="sr-only">Histórico de medições de {kpi.name}.</caption>
             <thead>
               <tr>
@@ -173,16 +173,16 @@ export default async function KpiDetailPage({
                 const status = getKpiStatus(m.goal, m.actual, kpi.direction, kpi.yellowRange, kpi.redRange);
                 return (
                   <tr key={m.id}>
-                    <th scope="row" className={STATUS_RAIL_CLASS[status]}>
+                    <th scope="row" data-label="Período" className={STATUS_RAIL_CLASS[status]}>
                       {periodLabel(m.period)}
                     </th>
-                    <td className="num">
+                    <td className="num" data-label="Previsto">
                       {m.goal} {kpi.metricUnit}
                     </td>
-                    <td className="num">
+                    <td className="num" data-label="Realizado">
                       {m.actual !== null ? `${m.actual} ${kpi.metricUnit}` : "—"}
                     </td>
-                    <td className="text-right">
+                    <td className="text-right" data-label="Status">
                       <span className={STATUS_BADGE_CLASS[status]}>{STATUS_LABEL[status]}</span>
                     </td>
                   </tr>

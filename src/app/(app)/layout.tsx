@@ -15,7 +15,17 @@ export default async function AppLayout({
   const density = session?.user.density ?? "comfortable";
 
   return (
-    <div data-theme={theme} data-density={density} className="app-theme flex h-dvh min-h-dvh overflow-hidden bg-[var(--color-bg)] text-[var(--color-ink-900)]">
+    <div
+      data-theme={theme}
+      data-density={density}
+      // `h-dvh` (not `h-screen`/implicit 100vh) so the shell tracks the
+      // *visual* viewport on mobile browsers: `fixed inset-0` alone sizes to
+      // the layout viewport, which stays at the browser-chrome-collapsed
+      // height even while the address bar is showing, pushing the header
+      // above the visible fold — mobile users then land on a page with no
+      // way back to the sidebar.
+      className="app-theme fixed inset-0 flex h-dvh min-h-0 overflow-hidden bg-[var(--color-bg)] text-[var(--color-ink-900)]"
+    >
       <Sidebar isManager={isManager} isAdmin={isAdmin} permissions={session?.user.permissions ?? []} />
       {/* min-w-0 overrides the flex-item default (min-width: auto), which
           otherwise lets a wide child (table, chart) force this column — and

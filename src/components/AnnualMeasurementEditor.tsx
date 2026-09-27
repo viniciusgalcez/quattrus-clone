@@ -37,11 +37,15 @@ export function AnnualMeasurementEditor({
     setError(null);
     startTransition(async () => {
       try {
-        await upsertAnnualMeasurement(formData);
+        const result = await upsertAnnualMeasurement(formData);
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
         setOpen(false);
         router.refresh();
-      } catch (reason) {
-        setError(reason instanceof Error ? reason.message : "Não foi possível salvar a medição.");
+      } catch {
+        setError("Não foi possível concluir o envio. Verifique sua conexão e tente novamente.");
       }
     });
   }

@@ -4,10 +4,12 @@ import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
 export function PasswordInput({
+  id,
   name,
   autoComplete,
   required,
 }: {
+  id?: string;
   name: string;
   autoComplete?: string;
   required?: boolean;
@@ -17,6 +19,7 @@ export function PasswordInput({
   return (
     <div className="relative">
       <input
+        id={id}
         type={visible ? "text" : "password"}
         name={name}
         autoComplete={autoComplete}
@@ -28,7 +31,6 @@ export function PasswordInput({
         onClick={() => setVisible((value) => !value)}
         aria-label={visible ? "Ocultar senha" : "Mostrar senha"}
         aria-pressed={visible}
-        tabIndex={-1}
         className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-[var(--color-ink-400)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-ink-700)]"
       >
         {visible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}

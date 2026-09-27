@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
     // 4.5 MB request limit; the import validator caps files at 4 MB there.
     serverActions: { bodySizeLimit: process.env.VERCEL ? "4.25mb" : "16mb" },
   },
+  images: {
+    qualities: [75, 92],
+  },
   poweredByHeader: false,
   async headers() {
     return [

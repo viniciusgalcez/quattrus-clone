@@ -34,3 +34,7 @@ qualquer mudança em compose, `.env.production` ou no proxy externo.
    permissão e possui rotina de purga para itens arquivados, mas a política
    corporativa de retenção para backups, dumps baixados e logs do proxy externo
    ainda depende da infraestrutura da Capricórnio.
+
+# Deploy e migrations
+
+O build do Vercel executa somente `next build`. Migrations são uma etapa explícita e anterior ao deploy: confirme primeiro o estado do Supabase e, quando houver migration Prisma nova, execute `npm run db:migrate:deploy` com uma conexão direta segura ou aplique a migration pelo fluxo controlado do Supabase. Não coloque uma `DIRECT_URL` local no ambiente de produção.

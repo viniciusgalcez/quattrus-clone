@@ -57,6 +57,17 @@ import {
 } from "@/lib/schemas";
 import { DEFAULT_PROFILE_BY_ROLE, permissionsFromForm } from "@/lib/profile-permissions";
 
+class MeasurementInputError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MeasurementInputError";
+  }
+}
+
+export type MeasurementQuickResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
 export async function createKpi(_prevState: FormActionState, formData: FormData): Promise<FormActionState> {
   const user = await requireUser("measurements");
 
@@ -568,7 +579,9 @@ export async function upsertMeasurement(formData: FormData) {
     actual: formData.get("actual"),
   });
   if (!parsed.success) {
-    throw new Error(Object.values(fieldErrorsFrom(parsed.error))[0] ?? "Valores inválidos.");
+    throw new MeasurementInputError(
+      Object.values(fieldErrorsFrom(parsed.error))[0] ?? "Valores inválidos."
+    );
   }
 
   // The current month is the only editable period — never trust a period
@@ -665,11 +678,50 @@ export async function upsertMeasurement(formData: FormData) {
 }
 
 /**
+ * Client modals cannot safely render an exception thrown by a Server Action:
+ * React intentionally replaces it with error #441 in production. Convert only
+ * known, user-actionable domain failures into serializable UI state and keep
+ * unexpected failures private.
+ */
+export async function upsertMeasurementQuick(
+  formData: FormData
+): Promise<MeasurementQuickResult> {
+  try {
+    await upsertMeasurement(formData);
+    return { ok: true };
+  } catch (error) {
+    if (error instanceof Error) {
+      const safeErrorNames = new Set([
+        "ForbiddenError",
+        "FcaPendingError",
+        "PeriodLockedError",
+        "MeasurementInputError",
+      ]);
+      if (safeErrorNames.has(error.name)) {
+        return { ok: false, error: error.message };
+      }
+      if (error.message === "Não autenticado.") {
+        return {
+          ok: false,
+          error: "Sua sessão expirou. Entre novamente para salvar a medição.",
+        };
+      }
+    }
+
+    console.error("[measurement-quick-save] unexpected server action failure", error);
+    return {
+      ok: false,
+      error: "Não foi possível salvar a medição. Tente novamente em instantes.",
+    };
+  }
+}
+
+/**
  * Annual-grid write path. Unlike the compact current-cycle editor, the period
  * comes from a selected month and is therefore validated, locked and audited
  * server-side before any value is persisted.
  */
-export async function upsertAnnualMeasurement(formData: FormData) {
+async function upsertAnnualMeasurementRaw(formData: FormData) {
   const user = await requireUser("measurements");
   const parsed = upsertAnnualMeasurementSchema.safeParse({
     kpiId: formData.get("kpiId"),
@@ -682,10 +734,10 @@ export async function upsertAnnualMeasurement(formData: FormData) {
     benchmark: formData.get("benchmark"),
     benchmarkValue: formData.get("benchmarkValue"),
   });
-  if (!parsed.success) throw new Error(Object.values(fieldErrorsFrom(parsed.error))[0] ?? "Valores inválidos.");
+  if (!parsed.success) throw new MeasurementInputError(Object.values(fieldErrorsFrom(parsed.error))[0] ?? "Valores inválidos.");
 
   const data = parsed.data;
-  if (comparePeriods(data.period, currentPeriod()) > 0) throw new Error("Não é possível lançar medições em um período futuro.");
+  if (comparePeriods(data.period, currentPeriod()) > 0) throw new MeasurementInputError("Não é possível lançar medições em um período futuro.");
   const kpi = await assertKpiEditable(data.kpiId, user);
   await assertPeriodWritable(data.period, kpi.departmentId);
   await assertFcaResolved(data.kpiId, data.period);
@@ -735,6 +787,45 @@ export async function upsertAnnualMeasurement(formData: FormData) {
   revalidatePath("/medicoes");
   revalidatePath("/farol");
   revalidatePath(`/metas/${data.kpiId}`);
+}
+
+/**
+ * Safe wrapper around upsertAnnualMeasurementRaw, mirroring
+ * upsertMeasurementQuick: Next.js redacts a Server Action's thrown error
+ * message in production (it shows only in dev), so an expected business
+ * error like "period is locked" must come back as data ({ok:false,error}),
+ * never as a thrown Error, or the user sees a bare minified React error
+ * instead of the actual reason.
+ */
+export async function upsertAnnualMeasurement(formData: FormData): Promise<MeasurementQuickResult> {
+  try {
+    await upsertAnnualMeasurementRaw(formData);
+    return { ok: true };
+  } catch (error) {
+    if (error instanceof Error) {
+      const safeErrorNames = new Set([
+        "ForbiddenError",
+        "FcaPendingError",
+        "PeriodLockedError",
+        "MeasurementInputError",
+      ]);
+      if (safeErrorNames.has(error.name)) {
+        return { ok: false, error: error.message };
+      }
+      if (error.message === "Não autenticado.") {
+        return {
+          ok: false,
+          error: "Sua sessão expirou. Entre novamente para salvar a medição.",
+        };
+      }
+    }
+
+    console.error("[annual-measurement-save] unexpected server action failure", error);
+    return {
+      ok: false,
+      error: "Não foi possível salvar a medição. Tente novamente em instantes.",
+    };
+  }
 }
 
 export async function saveActionPlan(

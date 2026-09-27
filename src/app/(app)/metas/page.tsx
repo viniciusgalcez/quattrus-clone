@@ -173,7 +173,7 @@ export default async function MetasPage() {
         )}
 
         <div className="table-scroll">
-          <table className="table-modern">
+          <table className="table-modern responsive-stack-table">
             <caption className="sr-only">
               Indicadores do ciclo de {periodLabel(period)}, com previsto e realizado editáveis.
             </caption>
@@ -215,7 +215,7 @@ export default async function MetasPage() {
 
                 return (
                   <tr key={kpi.id} className="row-editable">
-                    <th scope="row" className={STATUS_RAIL_CLASS[status]}>
+                    <th scope="row" data-label="Indicador" className={STATUS_RAIL_CLASS[status]}>
                       <Link
                         href={`/metas/${kpi.id}`}
                         className="text-[13px] font-medium text-[var(--color-brand-700)] hover:underline"
@@ -228,7 +228,7 @@ export default async function MetasPage() {
                       </div>
                     </th>
 
-                    <td className="num">
+                    <td className="num" data-label="Previsto">
                       <input
                         form={formId}
                         type="number"
@@ -246,7 +246,7 @@ export default async function MetasPage() {
                       )}
                     </td>
 
-                    <td className="num">
+                    <td className="num" data-label="Realizado">
                       <input
                         form={formId}
                         type="number"
@@ -260,11 +260,11 @@ export default async function MetasPage() {
                       />
                     </td>
 
-                    <td>
+                    <td data-label="Status">
                       <span className={STATUS_BADGE_CLASS[status]}>{STATUS_LABEL[status]}</span>
                     </td>
 
-                    <td>
+                    <td data-label="Ações">
                       <div className="flex items-center justify-end gap-2">
                         {foraDaMeta && measurement && (
                           <Link

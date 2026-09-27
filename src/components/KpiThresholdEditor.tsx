@@ -23,6 +23,34 @@ export function KpiThresholdEditor({
 
   const pctToX = (pct: number) => Math.min(100, Math.max(0, (pct / SCALE) * 100));
 
+  const handleKeyDown =
+    (which: "yellow" | "red") => (event: React.KeyboardEvent<HTMLButtonElement>) => {
+      const delta = event.shiftKey ? 5 : 1;
+      if (!["ArrowLeft", "ArrowDown", "ArrowRight", "ArrowUp"].includes(event.key)) return;
+
+      event.preventDefault();
+      const direction = event.key === "ArrowLeft" || event.key === "ArrowDown" ? -1 : 1;
+      if (which === "yellow") {
+        onChange({
+          yellowRange: Math.min(redRange, Math.max(0, yellowRange + direction * delta)),
+          redRange,
+        });
+      } else {
+        onChange({
+          yellowRange,
+          redRange: Math.max(yellowRange, Math.min(SCALE, redRange + direction * delta)),
+        });
+      }
+    };
+
+  const nudgeForward = (which: "yellow" | "red") => {
+    if (which === "yellow") {
+      onChange({ yellowRange: Math.min(redRange, yellowRange + 1), redRange });
+    } else {
+      onChange({ yellowRange, redRange: Math.min(SCALE, redRange + 1) });
+    }
+  };
+
   const startDrag = useCallback(
     (which: "yellow" | "red") => (event: React.PointerEvent) => {
       event.preventDefault();
@@ -59,6 +87,8 @@ export function KpiThresholdEditor({
           type="button"
           aria-label="Arrastar limite amarelo"
           onPointerDown={startDrag("yellow")}
+          onClick={() => nudgeForward("yellow")}
+          onKeyDown={handleKeyDown("yellow")}
           className="absolute top-0 h-full w-2 -translate-x-1/2 cursor-ew-resize bg-[var(--color-ink-900)]"
           style={{ left: `${pctToX(yellowRange)}%` }}
         />
@@ -66,6 +96,8 @@ export function KpiThresholdEditor({
           type="button"
           aria-label="Arrastar limite vermelho"
           onPointerDown={startDrag("red")}
+          onClick={() => nudgeForward("red")}
+          onKeyDown={handleKeyDown("red")}
           className="absolute top-0 h-full w-2 -translate-x-1/2 cursor-ew-resize bg-[var(--color-ink-900)]"
           style={{ left: `${pctToX(redRange)}%` }}
         />

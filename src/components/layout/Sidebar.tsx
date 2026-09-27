@@ -37,7 +37,7 @@ export function Sidebar({ isManager = false, isAdmin = false, permissions = [], 
   const isActive = (href: string) => href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
   const can = (permission: string) => permissions.includes(permission);
   return (
-    <aside className={`${className} shell-sidebar h-full w-[min(86vw,304px)] shrink-0 flex-col md:w-[248px]`}>
+    <aside className={`${className} shell-sidebar h-full max-h-full w-[min(86vw,304px)] shrink-0 self-stretch flex-col md:sticky md:top-0 md:w-[248px]`}>
       <Link href="/" className="shell-brand" aria-label="Capri Gestiona, página inicial">
         <CapricornioLogo size={40} priority />
         <span className="min-w-0">

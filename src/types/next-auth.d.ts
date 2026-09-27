@@ -11,6 +11,7 @@ declare module "next-auth" {
       avatarUpdatedAt: string | null;
       theme: "light" | "dark";
       density: "compact" | "comfortable";
+      startPage: "/" | "/metas" | "/farol" | "/agenda";
       showTeamReds: boolean;
     } & DefaultSession["user"];
   }
@@ -19,6 +20,7 @@ declare module "next-auth" {
     id: string;
     username: string;
     role: string;
+    startPage?: "/" | "/metas" | "/farol" | "/agenda";
   }
 }
 
@@ -27,5 +29,6 @@ declare module "next-auth/jwt" {
     id: string;
     username: string;
     role: string;
+    startPage?: "/" | "/metas" | "/farol" | "/agenda";
   }
 }

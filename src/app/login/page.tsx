@@ -22,16 +22,13 @@ async function login(formData: FormData) {
   }
 }
 
-// Faint noise, layered over the hero photo with mix-blend-mode: overlay, to
-// mask the softness of an upscaled source image instead of leaving it
-// visibly blurry. Purely cosmetic — swap the source photo for a
-// higher-resolution one and this can go.
+// Faint grain gives the textile image a tactile finish without obscuring the
+// original weave. The source is large enough for both responsive crops.
 const GRAIN_BACKGROUND =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")";
 
-// Same thread motif as the hero photo, reduced to a near-invisible line
-// pattern for the form side — ties the two panels together without a
-// gradient hero or decorative card, per DESIGN.md.
+// The form side echoes a very subtle diagonal thread, tying the calm paper
+// surface to the textile photograph without competing with the form.
 const THREAD_BACKGROUND =
   "repeating-linear-gradient(115deg, var(--color-border) 0px, var(--color-border) 1px, transparent 1px, transparent 34px)";
 
@@ -53,7 +50,7 @@ export default async function LoginPage({
   const { error } = await searchParams;
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--color-canvas)] lg:flex-row">
+    <div className="flex min-h-screen flex-col bg-[var(--color-bg)] lg:flex-row">
       {/* Mobile-only compact hero band — keeps the brand photo/tagline instead
           of leaving the screen blank above the form. Hidden on lg, where the
           full-height panel below takes over. */}
@@ -64,6 +61,7 @@ export default async function LoginPage({
           fill
           sizes="100vw"
           priority
+          quality={92}
           className="pointer-events-none object-cover object-[center_20%] contrast-[1.06] saturate-[0.92]"
         />
         <HeroGrain />
@@ -71,7 +69,7 @@ export default async function LoginPage({
           className="pointer-events-none absolute inset-0"
           style={{
             background:
-              "linear-gradient(180deg, rgba(22,24,23,0.55) 0%, rgba(22,24,23,0.25) 45%, rgba(22,24,23,0.82) 100%)",
+              "linear-gradient(180deg, rgba(22,24,23,0.38) 0%, rgba(22,24,23,0.12) 45%, rgba(22,24,23,0.82) 100%)",
           }}
         />
         <div className="relative flex items-center gap-2.5">
@@ -97,6 +95,7 @@ export default async function LoginPage({
           fill
           sizes="46vw"
           priority
+          quality={92}
           className="pointer-events-none object-cover object-center contrast-[1.06] saturate-[0.92]"
         />
         <HeroGrain />
@@ -104,7 +103,7 @@ export default async function LoginPage({
           className="pointer-events-none absolute inset-0"
           style={{
             background:
-              "linear-gradient(180deg, rgba(22,24,23,0.32) 0%, rgba(22,24,23,0.12) 42%, rgba(22,24,23,0.9) 100%)",
+              "linear-gradient(180deg, rgba(22,24,23,0.2) 0%, rgba(22,24,23,0.05) 42%, rgba(22,24,23,0.84) 100%), linear-gradient(90deg, rgba(22,24,23,0.22) 0%, transparent 72%)",
           }}
         />
         <div className="relative flex items-center gap-3">
@@ -136,11 +135,11 @@ export default async function LoginPage({
       </div>
 
       <div
-        className="relative flex flex-1 flex-col items-center justify-start p-6 pt-9 lg:justify-center lg:pt-6"
+        className="relative flex flex-1 flex-col items-center justify-start px-4 py-7 sm:px-6 sm:py-10 lg:justify-center lg:px-10 lg:py-8"
         style={{ backgroundImage: THREAD_BACKGROUND }}
       >
-        <div className="w-full max-w-[360px]">
-          <div className="mb-7 hidden lg:block">
+        <div className="w-full max-w-[424px] rounded-[3px] border border-[var(--color-border)] bg-[var(--color-surface)] px-6 py-7 shadow-[0_22px_60px_var(--color-shadow-strong)] sm:px-9 sm:py-9 lg:px-10 lg:py-10">
+          <div className="mb-7">
             <div className="flex items-center gap-3">
               <CapricornioLogo size={40} className="border border-[var(--color-border-strong)]" priority />
               <div>
@@ -160,8 +159,9 @@ export default async function LoginPage({
 
           <form noValidate action={login} className="mt-6 flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="field-label">Usuário</label>
+              <label htmlFor="username" className="field-label">Usuário</label>
               <input
+                id="username"
                 type="text"
                 name="username"
                 autoFocus
@@ -172,17 +172,17 @@ export default async function LoginPage({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="field-label">Senha</label>
-              <PasswordInput name="password" autoComplete="current-password" required />
+              <label htmlFor="password" className="field-label">Senha</label>
+              <PasswordInput id="password" name="password" autoComplete="current-password" required />
             </div>
 
             {error === "inactive" && (
-              <div className="rounded-lg bg-[var(--color-red-100)] px-3 py-2 text-[12px] text-[var(--color-red-600)]">
+              <div role="alert" className="rounded-lg bg-[var(--color-red-100)] px-3 py-2 text-[12px] text-[var(--color-red-600)]">
                 Sua conta foi desativada. Fale com um administrador.
               </div>
             )}
             {error && error !== "inactive" && (
-              <div className="rounded-lg bg-[var(--color-red-100)] px-3 py-2 text-[12px] text-[var(--color-red-600)]">
+              <div role="alert" className="rounded-lg bg-[var(--color-red-100)] px-3 py-2 text-[12px] text-[var(--color-red-600)]">
                 Usuário ou senha inválidos.
               </div>
             )}

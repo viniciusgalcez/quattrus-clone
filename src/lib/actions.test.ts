@@ -10,6 +10,7 @@ import {
   saveUserPreferences,
   upsertAnnualMeasurement,
   upsertMeasurement,
+  upsertMeasurementQuick,
   updateUser,
 } from "./actions";
 import { prisma } from "@/lib/prisma";
@@ -387,6 +388,40 @@ describe("upsertMeasurement", () => {
   });
 });
 
+describe("upsertMeasurementQuick", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    requireUserMock.mockResolvedValue(stub({ id: "user-1", role: "COLABORADOR" }));
+    assertKpiEditableMock.mockResolvedValue(
+      stub({ direction: "MORE", yellowRange: 10, redRange: 20 })
+    );
+    assertFcaResolvedMock.mockResolvedValue(undefined);
+    assertPeriodWritableMock.mockResolvedValue(undefined);
+    measurementFindUnique.mockResolvedValue(null);
+    measurementUpsert.mockResolvedValue(stub({ id: "meas-1" }));
+    recalculateDependentsMock.mockResolvedValue(undefined);
+    getKpiStatusMock.mockReturnValue("VERDE");
+  });
+
+  it("returns an actionable cycle error instead of throwing a production React 441", async () => {
+    assertPeriodWritableMock.mockRejectedValue(
+      Object.assign(new Error("Ciclo fechado."), { name: "PeriodLockedError" })
+    );
+
+    await expect(
+      upsertMeasurementQuick(form({ kpiId: "kpi-1", goal: "5", actual: "10" }))
+    ).resolves.toEqual({ ok: false, error: "Ciclo fechado." });
+
+    expect(measurementUpsert).not.toHaveBeenCalled();
+  });
+
+  it("returns success after persisting the measurement", async () => {
+    await expect(
+      upsertMeasurementQuick(form({ kpiId: "kpi-1", goal: "5", actual: "10" }))
+    ).resolves.toEqual({ ok: true });
+  });
+});
+
 describe("upsertAnnualMeasurement", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -402,7 +437,21 @@ describe("upsertAnnualMeasurement", () => {
   });
 
   it("blocks a direct annual write to a future month", async () => {
-    await expect(upsertAnnualMeasurement(form({ kpiId: "kpi-1", period: "2026-09", goal: "100", actual: "90", forecast: "95", measured: "on", justification: "", benchmark: "", benchmarkValue: "" }))).rejects.toThrow("período futuro");
+    await expect(
+      upsertAnnualMeasurement(form({ kpiId: "kpi-1", period: "2026-09", goal: "100", actual: "90", forecast: "95", measured: "on", justification: "", benchmark: "", benchmarkValue: "" }))
+    ).resolves.toEqual({ ok: false, error: expect.stringContaining("período futuro") });
+    expect(measurementUpsert).not.toHaveBeenCalled();
+  });
+
+  it("returns an actionable cycle error instead of throwing a production React 441", async () => {
+    assertPeriodWritableMock.mockRejectedValue(
+      Object.assign(new Error("Ciclo fechado."), { name: "PeriodLockedError" })
+    );
+
+    await expect(
+      upsertAnnualMeasurement(form({ kpiId: "kpi-1", period: "2026-08", goal: "100", actual: "90", forecast: "95", measured: "on", justification: "", benchmark: "", benchmarkValue: "" }))
+    ).resolves.toEqual({ ok: false, error: "Ciclo fechado." });
+
     expect(measurementUpsert).not.toHaveBeenCalled();
   });
 

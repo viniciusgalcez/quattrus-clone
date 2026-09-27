@@ -7,6 +7,14 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { recordAuditLog } from "@/lib/audit";
 import { normalizeProfilePermissions } from "@/lib/profile-permissions";
 
+const START_PAGES = new Set(["/", "/metas", "/farol", "/agenda"]);
+
+function normalizeStartPage(value: unknown): "/" | "/metas" | "/farol" | "/agenda" {
+  return typeof value === "string" && START_PAGES.has(value)
+    ? value as "/" | "/metas" | "/farol" | "/agenda"
+    : "/";
+}
+
 const nextAuth = NextAuth({
   trustHost: true,
   session: { strategy: "jwt" },
@@ -40,7 +48,11 @@ const nextAuth = NextAuth({
           return null;
         }
 
-        const user = await prisma.user.findUnique({ where: { username: normalizedUsername } });
+        const user = await prisma.user.findUnique({
+          relationLoadStrategy: "join",
+          where: { username: normalizedUsername },
+          include: { preference: { select: { startPage: true } } },
+        });
         if (!user) {
           await recordAuditLog({
             action: "LOGIN_FAILURE",
@@ -75,6 +87,7 @@ const nextAuth = NextAuth({
           name: user.name,
           username: user.username,
           role: user.role,
+          startPage: normalizeStartPage(user.preference?.startPage),
         };
       },
     }),
@@ -85,6 +98,7 @@ const nextAuth = NextAuth({
         token.id = user.id;
         token.username = (user as { username: string }).username;
         token.role = (user as { role: string }).role;
+        token.startPage = normalizeStartPage(user.startPage);
       }
       return token;
     },
@@ -93,12 +107,12 @@ const nextAuth = NextAuth({
         session.user.id = token.id as string;
         session.user.username = token.username as string;
         session.user.role = token.role as string;
+        session.user.startPage = normalizeStartPage(token.startPage);
 
         // Re-read role/active from the DB on every request instead of
         // trusting the JWT (which can be up to 30 days stale) — a role
-        // change or deactivation must take effect on the very next request,
-        // not the next login. The proxy checks `active` and signs the user
-        // out if it's false.
+        // change or deactivation must take effect on the very next protected
+        // render or Server Action, not only on the next login.
         const dbUser = await prisma.user.findUnique({
           relationLoadStrategy: "join",
           where: { id: token.id as string },
@@ -108,7 +122,7 @@ const nextAuth = NextAuth({
             active: true,
             avatarUpdatedAt: true,
             accessProfile: { select: { permissions: true } },
-            preference: { select: { theme: true, density: true, showTeamReds: true } },
+            preference: { select: { theme: true, density: true, startPage: true, showTeamReds: true } },
           },
         });
         session.user.name = dbUser?.name ?? session.user.name;
@@ -118,6 +132,7 @@ const nextAuth = NextAuth({
         session.user.avatarUpdatedAt = dbUser?.avatarUpdatedAt?.toISOString() ?? null;
         session.user.theme = dbUser?.preference?.theme === "light" ? "light" : "dark";
         session.user.density = dbUser?.preference?.density === "compact" ? "compact" : "comfortable";
+        session.user.startPage = normalizeStartPage(dbUser?.preference?.startPage ?? token.startPage);
         session.user.showTeamReds = dbUser?.preference?.showTeamReds ?? true;
       }
       return session;
@@ -130,11 +145,11 @@ export const { handlers, signIn, signOut } = nextAuth;
 // Layouts, pages and nested Server Components frequently request the same
 // session during one render. React's request-scoped cache keeps the security
 // refresh above fresh on every request while avoiding duplicate DB reads
-// inside that request. Calls with arguments (the Proxy wrapper) are forwarded
-// unchanged so Auth.js retains its overloaded API.
+// inside that request.
 const uncachedAuth = nextAuth.auth;
-const cachedSession = cache(() => uncachedAuth());
-export const auth = ((...args: unknown[]) => {
-  if (args.length === 0) return cachedSession();
-  return (uncachedAuth as (...values: unknown[]) => unknown)(...args);
-}) as typeof uncachedAuth;
+export const auth = cache(async () => {
+  const session = await uncachedAuth();
+  // The proxy only decodes the signed JWT to avoid a duplicate database hit.
+  // Keep deactivation enforcement immediate at the protected data boundary.
+  return session?.user.active === false ? null : session;
+});

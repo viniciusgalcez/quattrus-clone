@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
-import { upsertMeasurement } from "@/lib/actions";
+import { upsertMeasurementQuick } from "@/lib/actions";
 
 export function MeasurementQuickEditModal({
   kpiId,
@@ -38,11 +38,15 @@ export function MeasurementQuickEditModal({
     setError(null);
     startTransition(async () => {
       try {
-        await upsertMeasurement(formData);
+        const result = await upsertMeasurementQuick(formData);
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
         router.refresh();
         onClose();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Não foi possível salvar.");
+      } catch {
+        setError("Não foi possível concluir o envio. Verifique sua conexão e tente novamente.");
       }
     });
   }
@@ -107,7 +111,7 @@ export function MeasurementQuickEditModal({
           </div>
 
           {error && (
-            <div className="rounded-lg bg-[var(--color-red-100)] px-3 py-2 text-[12px] text-[var(--color-red-600)]">
+            <div role="alert" aria-live="polite" className="rounded-lg bg-[var(--color-red-100)] px-3 py-2 text-[12px] text-[var(--color-red-600)]">
               {error}
             </div>
           )}

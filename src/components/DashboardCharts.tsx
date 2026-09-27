@@ -20,12 +20,16 @@ export type ChartPoint = {
   Realizado: number;
 };
 
-// SVG presentation attributes use stable literals; mirror the chart tokens in globals.css.
+// CSS custom properties, not literal hex: globals.css defines light/dark
+// values for --chart-* and --color-* tokens, and recharts accepts a var()
+// string anywhere it accepts a color. The previous hardcoded hex here were
+// light-theme values only, which is why the hover cursor rendered as a
+// glaring near-white box on the dark theme.
 const SERIES = {
-  Previsto: "#8a8377",
-  Realizado: "#9b5938",
-  grid: "#dedbd3",
-  cursor: "#f3f1ec",
+  Previsto: "var(--chart-previsto)",
+  Realizado: "var(--chart-realizado)",
+  grid: "var(--chart-grid)",
+  cursor: "var(--color-surface-muted)",
 } as const;
 
 const nf = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
@@ -112,13 +116,13 @@ export function DashboardCharts({ data }: { data: ChartPoint[] }) {
             dataKey="name"
             axisLine={false}
             tickLine={false}
-            tick={{ fill: "#777d78", fontSize: 12 }}
+            tick={{ fill: "var(--color-ink-500)", fontSize: 12 }}
           />
           <YAxis
             axisLine={false}
             tickLine={false}
             width={52}
-            tick={{ fill: "#777d78", fontSize: 12 }}
+            tick={{ fill: "var(--color-ink-500)", fontSize: 12 }}
             tickFormatter={(value: number) => nfCompact.format(value)}
           />
           <Tooltip cursor={{ fill: SERIES.cursor }} content={ChartTooltip} />
@@ -127,7 +131,7 @@ export function DashboardCharts({ data }: { data: ChartPoint[] }) {
             height={28}
             iconType="square"
             iconSize={9}
-            wrapperStyle={{ fontSize: "12px", color: "#777d78" }}
+            wrapperStyle={{ fontSize: "12px", color: "var(--color-ink-500)" }}
           />
           <Bar dataKey="Previsto" fill={SERIES.Previsto} maxBarSize={24} radius={[4, 4, 0, 0]} />
           <Bar dataKey="Realizado" fill={SERIES.Realizado} maxBarSize={24} radius={[4, 4, 0, 0]} />

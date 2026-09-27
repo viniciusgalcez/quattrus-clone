@@ -18,21 +18,22 @@ export function DelegacaoItemForm({
   delegations: Delegation[];
 }) {
   const [state, formAction] = useActionState(createDelegation, null);
+  const selectId = `delegate-${kpiId}`;
 
   return (
     <div className="card">
       <div className="card-header">Delegação de edição</div>
-      <div className="flex flex-col gap-3 p-4">
-        <p className="text-[12px] text-[var(--color-ink-500)]">
+      <div className="flex flex-col gap-3 p-4 sm:p-5">
+        <p className="max-w-2xl text-[12px] leading-relaxed text-[var(--color-ink-500)]">
           Além de você, estas pessoas também podem lançar medições e editar este indicador.
         </p>
 
         {delegations.length > 0 && (
-          <ul className="flex flex-col gap-1.5">
+          <ul className="flex max-w-2xl flex-col gap-1.5">
             {delegations.map((d) => (
               <li
                 key={d.id}
-                className="flex items-center justify-between rounded-lg bg-[var(--color-bg)] px-3 py-1.5 text-[12.5px]"
+                className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-md bg-[var(--color-bg)] px-3 py-2 text-[12.5px]"
               >
                 {d.delegate.name}
                 <form noValidate
@@ -49,12 +50,16 @@ export function DelegacaoItemForm({
           </ul>
         )}
 
-        <form noValidate action={formAction} className="flex flex-wrap items-end gap-2">
-          <FormError message={state?.error} />
+        <form noValidate action={formAction} className="grid max-w-2xl gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+          {state?.error && (
+            <div className="sm:col-span-2">
+              <FormError message={state.error} />
+            </div>
+          )}
           <input type="hidden" name="kpiId" value={kpiId} />
-          <div className="flex flex-1 flex-col gap-1.5">
-            <label className="field-label">Delegar para</label>
-            <select name="delegateId" className="input-field" required defaultValue="">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <label htmlFor={selectId} className="field-label">Delegar para</label>
+            <select id={selectId} name="delegateId" className="input-field min-w-0" required defaultValue="">
               <option value="" disabled>
                 Escolha um usuário
               </option>
@@ -65,7 +70,7 @@ export function DelegacaoItemForm({
               ))}
             </select>
           </div>
-          <SubmitButton className="btn">Delegar</SubmitButton>
+          <SubmitButton className="btn w-full sm:w-auto" pendingText="Delegando…">Delegar</SubmitButton>
         </form>
       </div>
     </div>
