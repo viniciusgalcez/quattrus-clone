@@ -11,6 +11,7 @@ import {
   assertKpiParentAssignable,
   assertDepartmentAssignable,
   assertFcaResolved,
+  ForbiddenError,
 } from "@/lib/authz";
 import { parseTabularText } from "@/lib/csv";
 import { parseXlsxRows } from "@/lib/xlsx";
@@ -58,6 +59,21 @@ export type ImportReport = {
 };
 
 export type ImportState = { error?: string; report?: ImportReport };
+
+async function safeRequireImportUser(): Promise<SessionUser | ImportState> {
+  try {
+    return await requireUser("imports");
+  } catch (err) {
+    if (err instanceof ForbiddenError) return { error: err.message };
+    if (err instanceof Error && err.message === "Não autenticado.")
+      return { error: "Sua sessão expirou. Faça login novamente." };
+    return { error: "Não foi possível verificar suas permissões." };
+  }
+}
+
+function isImportError(result: SessionUser | ImportState): result is ImportState {
+  return "error" in result;
+}
 
 async function readTabularFile(formData: FormData, expectedHeaders: readonly string[]): Promise<TabularFile> {
   const file = formData.get("file");
@@ -109,7 +125,9 @@ async function readTabularFile(formData: FormData, expectedHeaders: readonly str
  * Quattrus: nobody wants a batch of 40 items to fail because of one typo.
  */
 export async function importKpisCsv(_prevState: ImportState | null, formData: FormData): Promise<ImportState> {
-  const user = await requireUser("imports");
+  const userOrError = await safeRequireImportUser();
+  if (isImportError(userOrError)) return userOrError;
+  const user = userOrError;
   if (!checkRateLimit("import", user.id, { limit: 5, windowMs: 60 * 1000 })) {
     return { error: "Muitas importações em pouco tempo. Aguarde um minuto e tente novamente." };
   }
@@ -251,7 +269,9 @@ export async function importMeasurementsCsv(
   _prevState: ImportState | null,
   formData: FormData
 ): Promise<ImportState> {
-  const user = await requireUser("imports");
+  const userOrError = await safeRequireImportUser();
+  if (isImportError(userOrError)) return userOrError;
+  const user = userOrError;
   if (!checkRateLimit("import", user.id, { limit: 5, windowMs: 60 * 1000 })) {
     return { error: "Muitas importações em pouco tempo. Aguarde um minuto e tente novamente." };
   }
@@ -395,7 +415,9 @@ export async function importPeriodicitiesCsv(
   _prevState: ImportState | null,
   formData: FormData
 ): Promise<ImportState> {
-  const user = await requireUser("imports");
+  const userOrError = await safeRequireImportUser();
+  if (isImportError(userOrError)) return userOrError;
+  const user = userOrError;
   if (!checkRateLimit("import", user.id, { limit: 5, windowMs: 60 * 1000 })) {
     return { error: "Muitas importações em pouco tempo. Aguarde um minuto e tente novamente." };
   }
@@ -478,7 +500,9 @@ export async function importThresholdsCsv(
   _prevState: ImportState | null,
   formData: FormData
 ): Promise<ImportState> {
-  const user = await requireUser("imports");
+  const userOrError = await safeRequireImportUser();
+  if (isImportError(userOrError)) return userOrError;
+  const user = userOrError;
   if (!checkRateLimit("import", user.id, { limit: 5, windowMs: 60 * 1000 })) {
     return { error: "Muitas importações em pouco tempo. Aguarde um minuto e tente novamente." };
   }
@@ -571,7 +595,9 @@ export async function importActionPlansCsv(
   _prevState: ImportState | null,
   formData: FormData
 ): Promise<ImportState> {
-  const user = await requireUser("imports");
+  const userOrError = await safeRequireImportUser();
+  if (isImportError(userOrError)) return userOrError;
+  const user = userOrError;
   if (!checkRateLimit("import", user.id, { limit: 5, windowMs: 60 * 1000 })) {
     return { error: "Muitas importações em pouco tempo. Aguarde um minuto e tente novamente." };
   }
@@ -667,7 +693,9 @@ export async function importCompanyItemsCsv(
   _prevState: ImportState | null,
   formData: FormData
 ): Promise<ImportState> {
-  const user = await requireUser("imports");
+  const userOrError = await safeRequireImportUser();
+  if (isImportError(userOrError)) return userOrError;
+  const user = userOrError;
   if (user.role !== "ADMIN") return { error: "Apenas administradores podem importar item empresa." };
   if (!checkRateLimit("import", user.id, { limit: 5, windowMs: 60 * 1000 })) {
     return { error: "Muitas importações em pouco tempo. Aguarde um minuto e tente novamente." };

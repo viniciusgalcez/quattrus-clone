@@ -698,6 +698,18 @@ export async function upsertMeasurement(formData: FormData) {
 }
 
 /**
+ * Safe void wrapper for use as a direct <form action={fn}>. Catches all errors
+ * so they never reach the client as React error #441.
+ */
+export async function upsertMeasurementSafe(formData: FormData): Promise<void> {
+  try {
+    await upsertMeasurement(formData);
+  } catch (error) {
+    handleActionError(error);
+  }
+}
+
+/**
  * Client modals cannot safely render an exception thrown by a Server Action:
  * React intentionally replaces it with error #441 in production. Convert only
  * known, user-actionable domain failures into serializable UI state and keep
@@ -1666,7 +1678,15 @@ export async function createDelegation(
   _prevState: FormActionState,
   formData: FormData
 ): Promise<FormActionState> {
-  const user = await requireUser("users");
+  let user;
+  try {
+    user = await requireUser("users");
+  } catch (err) {
+    if (err instanceof ForbiddenError) return { error: err.message };
+    if (err instanceof Error && err.message === "Não autenticado.")
+      return { error: "Sua sessão expirou. Faça login novamente." };
+    return { error: "Não foi possível completar a ação." };
+  }
 
   const parsed = createDelegationSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
@@ -1736,7 +1756,15 @@ export async function createFacilitation(
   _prevState: FormActionState,
   formData: FormData
 ): Promise<FormActionState> {
-  const actingUser = await requireUser("users");
+  let actingUser;
+  try {
+    actingUser = await requireUser("users");
+  } catch (err) {
+    if (err instanceof ForbiddenError) return { error: err.message };
+    if (err instanceof Error && err.message === "Não autenticado.")
+      return { error: "Sua sessão expirou. Faça login novamente." };
+    return { error: "Não foi possível completar a ação." };
+  }
   if (actingUser.role !== "ADMIN") {
     return { error: "Apenas administradores podem gerenciar facilitadores." };
   }

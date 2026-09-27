@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { createDelegation, removeDelegation } from "@/lib/actions";
 import { SubmitButton } from "@/components/SubmitButton";
 import { FormError } from "@/components/FieldError";
@@ -18,6 +18,7 @@ export function DelegacaoItemForm({
   delegations: Delegation[];
 }) {
   const [state, formAction] = useActionState(createDelegation, null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
   const selectId = `delegate-${kpiId}`;
 
   return (
@@ -27,6 +28,8 @@ export function DelegacaoItemForm({
         <p className="max-w-2xl text-[12px] leading-relaxed text-[var(--color-ink-500)]">
           Além de você, estas pessoas também podem lançar medições e editar este indicador.
         </p>
+
+        {removeError && <FormError message={removeError} />}
 
         {delegations.length > 0 && (
           <ul className="flex max-w-2xl flex-col gap-1.5">
@@ -38,7 +41,9 @@ export function DelegacaoItemForm({
                 {d.delegate.name}
                 <form noValidate
                   action={async () => {
-                    await removeDelegation(d.id);
+                    setRemoveError(null);
+                    const result = await removeDelegation(d.id);
+                    if (!result.ok) setRemoveError(result.error);
                   }}
                 >
                   <button type="submit" className="text-[11.5px] font-medium text-[var(--color-red-600)] hover:underline">

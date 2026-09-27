@@ -25,7 +25,14 @@ export async function duplicateKpi(
   _prevState: FormActionState,
   formData: FormData
 ): Promise<FormActionState> {
-  const user = await requireUser();
+  let user;
+  try {
+    user = await requireUser();
+  } catch (err) {
+    if (err instanceof Error && err.message === "Não autenticado.")
+      return { error: "Sua sessão expirou. Faça login novamente." };
+    return { error: "Não foi possível completar a ação." };
+  }
 
   const parsed = duplicateKpiSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
@@ -33,7 +40,13 @@ export async function duplicateKpi(
   }
   const { kpiId, targetUsername, copyMeasurements } = parsed.data;
 
-  const source = await assertKpiEditable(kpiId, user);
+  let source;
+  try {
+    source = await assertKpiEditable(kpiId, user);
+  } catch (err) {
+    if (err instanceof Error) return { error: err.message };
+    return { error: "Indicador não acessível." };
+  }
 
   let ownerId = user.id;
   if (targetUsername && targetUsername !== user.username) {

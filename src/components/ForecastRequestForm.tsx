@@ -15,11 +15,15 @@ export function ForecastRequestForm({ kpiId, period }: { kpiId: string; period: 
     setError(null);
     startTransition(async () => {
       try {
-        await createForecastRequest(new FormData(form));
+        const result = await createForecastRequest(new FormData(form));
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
         setMessage("Previsão enviada para aprovação.");
         form.reset();
-      } catch (cause) {
-        setError(cause instanceof Error ? cause.message : "Não foi possível enviar a previsão.");
+      } catch {
+        setError("Não foi possível enviar a previsão.");
       }
     });
   }

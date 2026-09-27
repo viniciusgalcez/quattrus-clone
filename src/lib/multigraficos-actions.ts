@@ -38,92 +38,120 @@ async function assertVisibleKpi(kpiId: string, user: { id: string; role: string 
   return kpi;
 }
 
-export async function createMultiChartTab(formData: FormData) {
-  const user = await requireUser("dashboard");
-  const name = requiredText(formData, "name", 40);
-  const count = await prisma.multiChartTab.count({ where: { userId: user.id } });
+export async function createMultiChartTab(formData: FormData): Promise<void> {
+  let redirectTo: string | undefined;
+  try {
+    const user = await requireUser("dashboard");
+    const name = requiredText(formData, "name", 40);
+    const count = await prisma.multiChartTab.count({ where: { userId: user.id } });
 
-  const tab = await prisma.multiChartTab.create({
-    data: { userId: user.id, name, sortOrder: count },
-  });
+    const tab = await prisma.multiChartTab.create({
+      data: { userId: user.id, name, sortOrder: count },
+    });
 
-  await recordAuditLog({
-    userId: user.id,
-    action: "CREATE",
-    entity: "MultiChartTab",
-    entityId: tab.id,
-    details: { name },
-  });
+    await recordAuditLog({
+      userId: user.id,
+      action: "CREATE",
+      entity: "MultiChartTab",
+      entityId: tab.id,
+      details: { name },
+    });
 
-  revalidatePath("/multigraficos");
-  redirect(`/multigraficos?tab=${tab.id}`);
+    revalidatePath("/multigraficos");
+    redirectTo = `/multigraficos?tab=${tab.id}`;
+  } catch (error) {
+    console.error("[multigraficos] createMultiChartTab failed", error);
+    return;
+  }
+  redirect(redirectTo);
 }
 
-export async function saveMultiChartSlot(formData: FormData) {
-  const user = await requireUser("dashboard");
-  const tabId = requiredText(formData, "tabId", 80);
-  const kpiId = requiredText(formData, "kpiId", 80);
-  const position = requiredPosition(formData);
-  const tab = await assertOwnedTab(tabId, user.id);
-  const kpi = await assertVisibleKpi(kpiId, user);
-  const slots = setMultiChartSlot(tab.slots, position, kpi.id);
+export async function saveMultiChartSlot(formData: FormData): Promise<void> {
+  let redirectTo: string | undefined;
+  try {
+    const user = await requireUser("dashboard");
+    const tabId = requiredText(formData, "tabId", 80);
+    const kpiId = requiredText(formData, "kpiId", 80);
+    const position = requiredPosition(formData);
+    const tab = await assertOwnedTab(tabId, user.id);
+    const kpi = await assertVisibleKpi(kpiId, user);
+    const slots = setMultiChartSlot(tab.slots, position, kpi.id);
 
-  await prisma.multiChartTab.update({
-    where: { id: tab.id },
-    data: { slots },
-  });
+    await prisma.multiChartTab.update({
+      where: { id: tab.id },
+      data: { slots },
+    });
 
-  await recordAuditLog({
-    userId: user.id,
-    action: "UPDATE",
-    entity: "MultiChartTab",
-    entityId: tab.id,
-    details: { position, kpiId: kpi.id, kpiName: kpi.name },
-  });
+    await recordAuditLog({
+      userId: user.id,
+      action: "UPDATE",
+      entity: "MultiChartTab",
+      entityId: tab.id,
+      details: { position, kpiId: kpi.id, kpiName: kpi.name },
+    });
 
-  revalidatePath("/multigraficos");
-  redirect(`/multigraficos?tab=${tab.id}`);
+    revalidatePath("/multigraficos");
+    redirectTo = `/multigraficos?tab=${tab.id}`;
+  } catch (error) {
+    console.error("[multigraficos] saveMultiChartSlot failed", error);
+    return;
+  }
+  redirect(redirectTo);
 }
 
-export async function clearMultiChartSlotAction(formData: FormData) {
-  const user = await requireUser("dashboard");
-  const tabId = requiredText(formData, "tabId", 80);
-  const position = requiredPosition(formData);
-  const tab = await assertOwnedTab(tabId, user.id);
-  const slots = clearMultiChartSlot(tab.slots, position);
+export async function clearMultiChartSlotAction(formData: FormData): Promise<void> {
+  let redirectTo: string | undefined;
+  try {
+    const user = await requireUser("dashboard");
+    const tabId = requiredText(formData, "tabId", 80);
+    const position = requiredPosition(formData);
+    const tab = await assertOwnedTab(tabId, user.id);
+    const slots = clearMultiChartSlot(tab.slots, position);
 
-  await prisma.multiChartTab.update({
-    where: { id: tab.id },
-    data: { slots },
-  });
+    await prisma.multiChartTab.update({
+      where: { id: tab.id },
+      data: { slots },
+    });
 
-  await recordAuditLog({
-    userId: user.id,
-    action: "UPDATE",
-    entity: "MultiChartTab",
-    entityId: tab.id,
-    details: { position, cleared: true },
-  });
+    await recordAuditLog({
+      userId: user.id,
+      action: "UPDATE",
+      entity: "MultiChartTab",
+      entityId: tab.id,
+      details: { position, cleared: true },
+    });
 
-  revalidatePath("/multigraficos");
-  redirect(`/multigraficos?tab=${tab.id}`);
+    revalidatePath("/multigraficos");
+    redirectTo = `/multigraficos?tab=${tab.id}`;
+  } catch (error) {
+    console.error("[multigraficos] clearMultiChartSlotAction failed", error);
+    return;
+  }
+  redirect(redirectTo);
 }
 
-export async function deleteMultiChartTab(formData: FormData) {
-  const user = await requireUser("dashboard");
-  const tabId = requiredText(formData, "tabId", 80);
-  const tab = await assertOwnedTab(tabId, user.id);
+export async function deleteMultiChartTab(formData: FormData): Promise<void> {
+  let redirectTo: string | undefined;
+  try {
+    const user = await requireUser("dashboard");
+    const tabId = requiredText(formData, "tabId", 80);
+    const tab = await assertOwnedTab(tabId, user.id);
 
-  await prisma.multiChartTab.delete({ where: { id: tab.id } });
+    await prisma.multiChartTab.delete({ where: { id: tab.id } });
 
-  await recordAuditLog({
-    userId: user.id,
-    action: "DELETE",
-    entity: "MultiChartTab",
-    entityId: tab.id,
-    details: { name: tab.name },
-  });
+    await recordAuditLog({
+      userId: user.id,
+      action: "DELETE",
+      entity: "MultiChartTab",
+      entityId: tab.id,
+      details: { name: tab.name },
+    });
 
-  revalidatePath("/multigraficos");
-  redirect("/multigraficos");
+    revalidatePath("/multigraficos");
+    redirectTo = "/multigraficos";
+  } catch (error) {
+    console.error("[multigraficos] deleteMultiChartTab failed", error);
+    return;
+  }
+  redirect(redirectTo);
 }

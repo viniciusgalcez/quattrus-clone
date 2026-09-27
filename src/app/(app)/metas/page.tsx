@@ -11,7 +11,7 @@ import {
   STATUS_LABEL,
   STATUS_RAIL_CLASS,
 } from "@/lib/kpi";
-import { upsertMeasurement } from "@/lib/actions";
+import { upsertMeasurementSafe } from "@/lib/actions";
 import { findPeriodLock } from "@/lib/period-locks";
 import { SubmitButton } from "@/components/SubmitButton";
 import { EmptyState } from "@/components/EmptyState";
@@ -274,7 +274,7 @@ export default async function MetasPage() {
                             Abrir FCA
                           </Link>
                         )}
-                        <form noValidate id={formId} action={upsertMeasurement}>
+                        <form noValidate id={formId} action={upsertMeasurementSafe}>
                           <input type="hidden" name="kpiId" value={kpi.id} />
                           <SubmitButton
                             className="btn text-[11px]"
