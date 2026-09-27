@@ -21,6 +21,7 @@ export function PeriodLockControls({
 
   if (lock) {
     const reopen = async () => {
+      "use server";
       await reopenPeriod(period);
     };
 
