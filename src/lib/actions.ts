@@ -56,6 +56,7 @@ import {
   type FormActionState,
 } from "@/lib/schemas";
 import { DEFAULT_PROFILE_BY_ROLE, permissionsFromForm } from "@/lib/profile-permissions";
+import { type ActionResult, handleActionError } from "@/lib/action-result";
 
 class MeasurementInputError extends Error {
   constructor(message: string) {
@@ -64,9 +65,8 @@ class MeasurementInputError extends Error {
   }
 }
 
-export type MeasurementQuickResult =
-  | { ok: true }
-  | { ok: false; error: string };
+/** @deprecated Use ActionResult instead */
+export type MeasurementQuickResult = ActionResult;
 
 export async function createKpi(_prevState: FormActionState, formData: FormData): Promise<FormActionState> {
   const user = await requireUser("measurements");
@@ -471,16 +471,21 @@ export async function addTotalizationChild(
 }
 
 /** Removes an item from this one's totalization, without archiving it. */
-export async function removeTotalizationChild(parentKpiId: string, childKpiId: string) {
-  const user = await requireUser("measurements");
-  await assertKpiEditable(parentKpiId, user);
-  await assertKpiEditable(childKpiId, user);
-  const child = await prisma.kpi.findUnique({ where: { id: childKpiId }, select: { parentId: true } });
-  if (child?.parentId !== parentKpiId) throw new ForbiddenError("Este item não é subordinado deste indicador.");
-  await prisma.kpi.update({ where: { id: childKpiId }, data: { parentId: null } });
-  await recordAuditLog({ userId: user.id, action: "UPDATE", entity: "KpiTotalization", entityId: parentKpiId, details: { removedChild: childKpiId } });
-  revalidatePath(`/metas/${parentKpiId}/editar`);
-  revalidatePath(`/metas/${parentKpiId}`);
+export async function removeTotalizationChild(parentKpiId: string, childKpiId: string): Promise<ActionResult> {
+  try {
+    const user = await requireUser("measurements");
+    await assertKpiEditable(parentKpiId, user);
+    await assertKpiEditable(childKpiId, user);
+    const child = await prisma.kpi.findUnique({ where: { id: childKpiId }, select: { parentId: true } });
+    if (child?.parentId !== parentKpiId) throw new ForbiddenError("Este item não é subordinado deste indicador.");
+    await prisma.kpi.update({ where: { id: childKpiId }, data: { parentId: null } });
+    await recordAuditLog({ userId: user.id, action: "UPDATE", entity: "KpiTotalization", entityId: parentKpiId, details: { removedChild: childKpiId } });
+    revalidatePath(`/metas/${parentKpiId}/editar`);
+    revalidatePath(`/metas/${parentKpiId}`);
+    return { ok: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
 }
 
 /** Bulk-saves the per-child weight/coefficient used by the parent's totalization. */
@@ -515,14 +520,19 @@ export async function updateTotalizationWeights(
 }
 
 /** Re-runs the totalizer/formula cascade for the current period on demand. */
-export async function recalculateTotalization(parentKpiId: string) {
-  const user = await requireUser("measurements");
-  await assertKpiEditable(parentKpiId, user);
-  const period = currentPeriod();
-  await recalculateParentMeasurement(parentKpiId, period);
-  await recalculateDependentMeasurements(parentKpiId, period);
-  revalidatePath(`/metas/${parentKpiId}`);
-  revalidatePath(`/metas/${parentKpiId}/editar`);
+export async function recalculateTotalization(parentKpiId: string): Promise<ActionResult> {
+  try {
+    const user = await requireUser("measurements");
+    await assertKpiEditable(parentKpiId, user);
+    const period = currentPeriod();
+    await recalculateParentMeasurement(parentKpiId, period);
+    await recalculateDependentMeasurements(parentKpiId, period);
+    revalidatePath(`/metas/${parentKpiId}`);
+    revalidatePath(`/metas/${parentKpiId}/editar`);
+    return { ok: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
 }
 
 /** Toggles whether every user (not just the owner's scope) can see/use this item. */
@@ -543,28 +553,38 @@ export async function updateKpiSharing(
 
 // ── Indicadores arquivados (admin-only) ─────────────────────────────────────
 
-export async function restoreKpi(kpiId: string) {
-  const user = await requireUser("measurements");
-  if (user.role !== "ADMIN") throw new ForbiddenError("Apenas administradores podem restaurar indicadores.");
+export async function restoreKpi(kpiId: string): Promise<ActionResult> {
+  try {
+    const user = await requireUser("measurements");
+    if (user.role !== "ADMIN") throw new ForbiddenError("Apenas administradores podem restaurar indicadores.");
 
-  await prisma.kpi.update({ where: { id: kpiId }, data: { archivedAt: null } });
-  await recordAuditLog({ userId: user.id, action: "RESTORE", entity: "Kpi", entityId: kpiId });
-  revalidatePath("/metas/arquivados");
-  revalidatePath("/metas");
-  revalidatePath("/");
+    await prisma.kpi.update({ where: { id: kpiId }, data: { archivedAt: null } });
+    await recordAuditLog({ userId: user.id, action: "RESTORE", entity: "Kpi", entityId: kpiId });
+    revalidatePath("/metas/arquivados");
+    revalidatePath("/metas");
+    revalidatePath("/");
+    return { ok: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
 }
 
 /** Manual, immediate version of the 1-year auto-purge — for one item, on demand. */
-export async function purgeArchivedKpiNow(kpiId: string) {
-  const user = await requireUser("measurements");
-  if (user.role !== "ADMIN") throw new ForbiddenError("Apenas administradores podem excluir indicadores arquivados.");
+export async function purgeArchivedKpiNow(kpiId: string): Promise<ActionResult> {
+  try {
+    const user = await requireUser("measurements");
+    if (user.role !== "ADMIN") throw new ForbiddenError("Apenas administradores podem excluir indicadores arquivados.");
 
-  const kpi = await prisma.kpi.findUnique({ where: { id: kpiId }, select: { archivedAt: true } });
-  if (!kpi) throw new ForbiddenError("Indicador não encontrado.");
-  if (!kpi.archivedAt) throw new ForbiddenError("Este indicador não está arquivado.");
+    const kpi = await prisma.kpi.findUnique({ where: { id: kpiId }, select: { archivedAt: true } });
+    if (!kpi) throw new ForbiddenError("Indicador não encontrado.");
+    if (!kpi.archivedAt) throw new ForbiddenError("Este indicador não está arquivado.");
 
-  await purgeArchivedKpiWithHistory(kpiId, user.id);
-  revalidatePath("/metas/arquivados");
+    await purgeArchivedKpiWithHistory(kpiId, user.id);
+    revalidatePath("/metas/arquivados");
+    return { ok: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
 }
 
 export async function upsertMeasurement(formData: FormData) {
@@ -888,230 +908,271 @@ export async function saveActionPlan(
   redirect("/metas");
 }
 
-export async function concludeActionPlan(actionPlanId: string) {
-  const user = await requireUser("tasks");
-  await assertActionPlanEditable(actionPlanId, user);
-  await prisma.actionPlan.update({
-    where: { id: actionPlanId },
-    data: { status: "CONCLUIDO" },
-  });
-  await recordAuditLog({
-    userId: user.id,
-    action: "STATUS_CHANGE",
-    entity: "ActionPlan",
-    entityId: actionPlanId,
-    details: { status: "CONCLUIDO" },
-  });
-  revalidatePath("/metas");
-  revalidatePath("/");
+export async function concludeActionPlan(actionPlanId: string): Promise<void> {
+  try {
+    const user = await requireUser("tasks");
+    await assertActionPlanEditable(actionPlanId, user);
+    await prisma.actionPlan.update({
+      where: { id: actionPlanId },
+      data: { status: "CONCLUIDO" },
+    });
+    await recordAuditLog({
+      userId: user.id,
+      action: "STATUS_CHANGE",
+      entity: "ActionPlan",
+      entityId: actionPlanId,
+      details: { status: "CONCLUIDO" },
+    });
+    revalidatePath("/metas");
+    revalidatePath("/");
+  } catch (error) {
+    handleActionError(error);
+  }
 }
 
-export async function reopenActionPlan(actionPlanId: string) {
-  const user = await requireUser("tasks");
-  await assertActionPlanEditable(actionPlanId, user);
-  await prisma.actionPlan.update({
-    where: { id: actionPlanId },
-    data: { status: "ABERTO" },
-  });
-  await recordAuditLog({
-    userId: user.id,
-    action: "STATUS_CHANGE",
-    entity: "ActionPlan",
-    entityId: actionPlanId,
-    details: { status: "ABERTO" },
-  });
-  revalidatePath("/metas");
-  revalidatePath("/");
+export async function reopenActionPlan(actionPlanId: string): Promise<void> {
+  try {
+    const user = await requireUser("tasks");
+    await assertActionPlanEditable(actionPlanId, user);
+    await prisma.actionPlan.update({
+      where: { id: actionPlanId },
+      data: { status: "ABERTO" },
+    });
+    await recordAuditLog({
+      userId: user.id,
+      action: "STATUS_CHANGE",
+      entity: "ActionPlan",
+      entityId: actionPlanId,
+      details: { status: "ABERTO" },
+    });
+    revalidatePath("/metas");
+    revalidatePath("/");
+  } catch (error) {
+    handleActionError(error);
+  }
 }
 
 export async function createActionPlanStep(formData: FormData): Promise<void> {
-  const user = await requireUser("tasks");
-  const parsed = createActionPlanStepSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) throw new Error(Object.values(fieldErrorsFrom(parsed.error))[0] ?? "Etapa inválida.");
+  try {
+    const user = await requireUser("tasks");
+    const parsed = createActionPlanStepSchema.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) throw new Error(Object.values(fieldErrorsFrom(parsed.error))[0] ?? "Etapa inválida.");
 
-  const data = parsed.data;
-  await assertActionPlanEditable(data.actionPlanId, user);
-  const step = await prisma.actionPlanStep.create({
-    data: {
-      actionPlanId: data.actionPlanId,
-      parentId: data.parentId || null,
-      name: data.name,
-      responsibleId: data.responsibleId || null,
-      startDate: data.startDate ? new Date(data.startDate) : null,
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
-      value: data.value,
-    },
-  });
-  await recordAuditLog({
-    userId: user.id,
-    action: "CREATE",
-    entity: "ActionPlanStep",
-    entityId: step.id,
-    details: { actionPlanId: data.actionPlanId, name: data.name, responsibleId: data.responsibleId || null },
-  });
-  revalidatePath(`/fca/${(await prisma.actionPlan.findUnique({ where: { id: data.actionPlanId }, select: { measurementId: true } }))?.measurementId ?? ""}`);
+    const data = parsed.data;
+    await assertActionPlanEditable(data.actionPlanId, user);
+    const step = await prisma.actionPlanStep.create({
+      data: {
+        actionPlanId: data.actionPlanId,
+        parentId: data.parentId || null,
+        name: data.name,
+        responsibleId: data.responsibleId || null,
+        startDate: data.startDate ? new Date(data.startDate) : null,
+        dueDate: data.dueDate ? new Date(data.dueDate) : null,
+        value: data.value,
+      },
+    });
+    await recordAuditLog({
+      userId: user.id,
+      action: "CREATE",
+      entity: "ActionPlanStep",
+      entityId: step.id,
+      details: { actionPlanId: data.actionPlanId, name: data.name, responsibleId: data.responsibleId || null },
+    });
+    revalidatePath(`/fca/${(await prisma.actionPlan.findUnique({ where: { id: data.actionPlanId }, select: { measurementId: true } }))?.measurementId ?? ""}`);
+  } catch (error) {
+    handleActionError(error);
+  }
 }
 
 export async function updateActionPlanStep(stepId: string, formData: FormData): Promise<void> {
-  const user = await requireUser("tasks");
-  const step = await prisma.actionPlanStep.findUnique({ where: { id: stepId }, select: { actionPlanId: true } });
-  if (!step) throw new ForbiddenError("Etapa não encontrada.");
-  await assertActionPlanEditable(step.actionPlanId, user);
-  const parsed = updateActionPlanStepSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) throw new Error(Object.values(fieldErrorsFrom(parsed.error))[0] ?? "Etapa inválida.");
-  const data = parsed.data;
-  await prisma.actionPlanStep.update({
-    where: { id: stepId },
-    data: {
-      parentId: data.parentId || null,
-      name: data.name,
-      responsibleId: data.responsibleId || null,
-      startDate: data.startDate ? new Date(data.startDate) : null,
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
-      value: data.value,
-      status: data.status,
-    },
-  });
-  await recordAuditLog({ userId: user.id, action: "UPDATE", entity: "ActionPlanStep", entityId: stepId, details: data });
+  try {
+    const user = await requireUser("tasks");
+    const step = await prisma.actionPlanStep.findUnique({ where: { id: stepId }, select: { actionPlanId: true } });
+    if (!step) throw new ForbiddenError("Etapa não encontrada.");
+    await assertActionPlanEditable(step.actionPlanId, user);
+    const parsed = updateActionPlanStepSchema.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) throw new Error(Object.values(fieldErrorsFrom(parsed.error))[0] ?? "Etapa inválida.");
+    const data = parsed.data;
+    await prisma.actionPlanStep.update({
+      where: { id: stepId },
+      data: {
+        parentId: data.parentId || null,
+        name: data.name,
+        responsibleId: data.responsibleId || null,
+        startDate: data.startDate ? new Date(data.startDate) : null,
+        dueDate: data.dueDate ? new Date(data.dueDate) : null,
+        value: data.value,
+        status: data.status,
+      },
+    });
+    await recordAuditLog({ userId: user.id, action: "UPDATE", entity: "ActionPlanStep", entityId: stepId, details: data });
+  } catch (error) {
+    handleActionError(error);
+  }
 }
 
 export async function deleteActionPlanStep(stepId: string): Promise<void> {
-  const user = await requireUser("tasks");
-  const step = await prisma.actionPlanStep.findUnique({ where: { id: stepId }, select: { actionPlanId: true } });
-  if (!step) throw new ForbiddenError("Etapa não encontrada.");
-  await assertActionPlanEditable(step.actionPlanId, user);
-  await prisma.actionPlanStep.delete({ where: { id: stepId } });
-  await recordAuditLog({ userId: user.id, action: "DELETE", entity: "ActionPlanStep", entityId: stepId, details: { actionPlanId: step.actionPlanId } });
+  try {
+    const user = await requireUser("tasks");
+    const step = await prisma.actionPlanStep.findUnique({ where: { id: stepId }, select: { actionPlanId: true } });
+    if (!step) throw new ForbiddenError("Etapa não encontrada.");
+    await assertActionPlanEditable(step.actionPlanId, user);
+    await prisma.actionPlanStep.delete({ where: { id: stepId } });
+    await recordAuditLog({ userId: user.id, action: "DELETE", entity: "ActionPlanStep", entityId: stepId, details: { actionPlanId: step.actionPlanId } });
+  } catch (error) {
+    handleActionError(error);
+  }
 }
 
-export async function createForecastRequest(formData: FormData): Promise<void> {
-  const user = await requireUser("measurements");
-  const parsed = createForecastRequestSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) throw new Error(Object.values(fieldErrorsFrom(parsed.error))[0] ?? "Previsão inválida.");
-  const data = parsed.data;
-  const kpi = await assertKpiEditable(data.kpiId, user);
-  const existing = await prisma.forecastRequest.findFirst({
-    where: { kpiId: data.kpiId, period: data.period, status: "PENDENTE" },
-    select: { id: true },
-  });
-  if (existing) throw new Error("Já existe uma previsão pendente para este indicador e período.");
-  const request = await prisma.forecastRequest.create({
-    data: {
-      kpiId: kpi.id,
-      period: data.period,
-      proposedGoal: data.proposedGoal,
-      proposedActual: data.proposedActual,
-      reason: data.reason,
-      requestedById: user.id,
-    },
-  });
-  const managerIds = await getManagerIds(kpi.ownerId);
-  const reviewers = managerIds.length ? managerIds : await prisma.user.findMany({ where: { role: "ADMIN", active: true }, select: { id: true } }).then((users) => users.map((item) => item.id));
-  await notifyUsers(reviewers, { type: "FORECAST_PENDING", title: "Previsão aguardando aprovação", body: `Há uma previsão de ${kpi.name} para ${data.period} aguardando análise.`, href: "/aprovacoes/previsoes", relatedKpiId: kpi.id, fromUserId: user.id, originLabel: "Previsões" });
-  await recordAuditLog({ userId: user.id, action: "CREATE", entity: "ForecastRequest", entityId: request.id, details: data });
-  revalidatePath("/aprovacoes/previsoes");
+export async function createForecastRequest(formData: FormData): Promise<ActionResult> {
+  try {
+    const user = await requireUser("measurements");
+    const parsed = createForecastRequestSchema.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) throw new Error(Object.values(fieldErrorsFrom(parsed.error))[0] ?? "Previsão inválida.");
+    const data = parsed.data;
+    const kpi = await assertKpiEditable(data.kpiId, user);
+    const existing = await prisma.forecastRequest.findFirst({
+      where: { kpiId: data.kpiId, period: data.period, status: "PENDENTE" },
+      select: { id: true },
+    });
+    if (existing) throw new Error("Já existe uma previsão pendente para este indicador e período.");
+    const request = await prisma.forecastRequest.create({
+      data: {
+        kpiId: kpi.id,
+        period: data.period,
+        proposedGoal: data.proposedGoal,
+        proposedActual: data.proposedActual,
+        reason: data.reason,
+        requestedById: user.id,
+      },
+    });
+    const managerIds = await getManagerIds(kpi.ownerId);
+    const reviewers = managerIds.length ? managerIds : await prisma.user.findMany({ where: { role: "ADMIN", active: true }, select: { id: true } }).then((users) => users.map((item) => item.id));
+    await notifyUsers(reviewers, { type: "FORECAST_PENDING", title: "Previsão aguardando aprovação", body: `Há uma previsão de ${kpi.name} para ${data.period} aguardando análise.`, href: "/aprovacoes/previsoes", relatedKpiId: kpi.id, fromUserId: user.id, originLabel: "Previsões" });
+    await recordAuditLog({ userId: user.id, action: "CREATE", entity: "ForecastRequest", entityId: request.id, details: data });
+    revalidatePath("/aprovacoes/previsoes");
+    return { ok: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
 }
 
 export async function reviewForecast(forecastId: string, formData: FormData): Promise<void> {
-  const user = await requireUser("approvals");
-  const parsed = reviewForecastSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) throw new Error(Object.values(fieldErrorsFrom(parsed.error))[0] ?? "Decisão inválida.");
-  const forecast = await prisma.forecastRequest.findUnique({ where: { id: forecastId }, include: { kpi: { select: { ownerId: true, departmentId: true, direction: true, yellowRange: true, redRange: true, parentId: true } } } });
-  if (!forecast) throw new ForbiddenError("Previsão não encontrada.");
-  if (forecast.status !== "PENDENTE") throw new Error("Esta previsão já foi analisada.");
-  if (forecast.kpi.ownerId === user.id || !(await canView(user.id, user.role, forecast.kpi.ownerId))) {
-    throw new ForbiddenError("Você não pode analisar esta previsão.");
-  }
-  await assertPeriodWritable(forecast.period, forecast.kpi.departmentId);
-  const data = parsed.data;
-  await prisma.$transaction(async (tx) => {
-    const claimed = await tx.forecastRequest.updateMany({
-      where: { id: forecastId, status: "PENDENTE" },
-      data: { status: data.status, reviewNote: data.reviewNote || null, reviewedById: user.id, reviewedAt: new Date() },
-    });
-    if (claimed.count !== 1) throw new Error("Esta previsão já foi analisada.");
+  try {
+    const user = await requireUser("approvals");
+    const parsed = reviewForecastSchema.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) throw new Error(Object.values(fieldErrorsFrom(parsed.error))[0] ?? "Decisão inválida.");
+    const forecast = await prisma.forecastRequest.findUnique({ where: { id: forecastId }, include: { kpi: { select: { ownerId: true, departmentId: true, direction: true, yellowRange: true, redRange: true, parentId: true } } } });
+    if (!forecast) throw new ForbiddenError("Previsão não encontrada.");
+    if (forecast.status !== "PENDENTE") throw new Error("Esta previsão já foi analisada.");
+    if (forecast.kpi.ownerId === user.id || !(await canView(user.id, user.role, forecast.kpi.ownerId))) {
+      throw new ForbiddenError("Você não pode analisar esta previsão.");
+    }
+    await assertPeriodWritable(forecast.period, forecast.kpi.departmentId);
+    const data = parsed.data;
+    await prisma.$transaction(async (tx) => {
+      const claimed = await tx.forecastRequest.updateMany({
+        where: { id: forecastId, status: "PENDENTE" },
+        data: { status: data.status, reviewNote: data.reviewNote || null, reviewedById: user.id, reviewedAt: new Date() },
+      });
+      if (claimed.count !== 1) throw new Error("Esta previsão já foi analisada.");
 
-    if (data.status !== "APROVADA") return;
+      if (data.status !== "APROVADA") return;
 
-    const current = await tx.measurement.findUnique({
-      where: { kpiId_period: { kpiId: forecast.kpiId, period: forecast.period } },
-      select: { goal: true, actual: true },
-    });
-    const goal = forecast.proposedGoal ?? current?.goal;
-    const actual = forecast.proposedActual ?? current?.actual ?? null;
-    if (goal === undefined) throw new Error("A previsão aprovada não possui uma meta válida.");
-    const trafficLight = getKpiStatus(goal, actual, forecast.kpi.direction, forecast.kpi.yellowRange, forecast.kpi.redRange);
+      const current = await tx.measurement.findUnique({
+        where: { kpiId_period: { kpiId: forecast.kpiId, period: forecast.period } },
+        select: { goal: true, actual: true },
+      });
+      const goal = forecast.proposedGoal ?? current?.goal;
+      const actual = forecast.proposedActual ?? current?.actual ?? null;
+      if (goal === undefined) throw new Error("A previsão aprovada não possui uma meta válida.");
+      const trafficLight = getKpiStatus(goal, actual, forecast.kpi.direction, forecast.kpi.yellowRange, forecast.kpi.redRange);
 
-    await tx.measurement.upsert({
-      where: { kpiId_period: { kpiId: forecast.kpiId, period: forecast.period } },
-      update: { goal, actual, trafficLight, reportedById: forecast.requestedById, goalApprovalStatus: "APROVADA", goalApprovedById: user.id, goalApprovedAt: new Date() },
-      create: { kpiId: forecast.kpiId, period: forecast.period, goal, actual, trafficLight, reportedById: forecast.requestedById, goalApprovalStatus: "APROVADA", goalApprovedById: user.id, goalApprovedAt: new Date() },
+      await tx.measurement.upsert({
+        where: { kpiId_period: { kpiId: forecast.kpiId, period: forecast.period } },
+        update: { goal, actual, trafficLight, reportedById: forecast.requestedById, goalApprovalStatus: "APROVADA", goalApprovedById: user.id, goalApprovedAt: new Date() },
+        create: { kpiId: forecast.kpiId, period: forecast.period, goal, actual, trafficLight, reportedById: forecast.requestedById, goalApprovalStatus: "APROVADA", goalApprovedById: user.id, goalApprovedAt: new Date() },
+      });
     });
-  });
-  if (data.status === "APROVADA" && forecast.kpi.parentId) {
-    await recalculateParentMeasurement(forecast.kpi.parentId, forecast.period);
+    if (data.status === "APROVADA" && forecast.kpi.parentId) {
+      await recalculateParentMeasurement(forecast.kpi.parentId, forecast.period);
+    }
+    if (data.status === "APROVADA") {
+      await recalculateDependentMeasurements(forecast.kpiId, forecast.period);
+    }
+    await notifyUser({ recipientId: forecast.requestedById, type: "FORECAST_REVIEWED", title: `Previsão ${data.status === "APROVADA" ? "aprovada" : "rejeitada"}`, body: `A previsão do período ${forecast.period} foi analisada pelo gestor.`, href: `/metas/${forecast.kpiId}`, relatedKpiId: forecast.kpiId, fromUserId: user.id, originLabel: "Previsões" });
+    await recordAuditLog({ userId: user.id, action: "STATUS_CHANGE", entity: "ForecastRequest", entityId: forecastId, details: { status: data.status, reviewNote: data.reviewNote || null } });
+    revalidatePath("/aprovacoes/previsoes");
+  } catch (error) {
+    handleActionError(error);
   }
-  if (data.status === "APROVADA") {
-    await recalculateDependentMeasurements(forecast.kpiId, forecast.period);
-  }
-  await notifyUser({ recipientId: forecast.requestedById, type: "FORECAST_REVIEWED", title: `Previsão ${data.status === "APROVADA" ? "aprovada" : "rejeitada"}`, body: `A previsão do período ${forecast.period} foi analisada pelo gestor.`, href: `/metas/${forecast.kpiId}`, relatedKpiId: forecast.kpiId, fromUserId: user.id, originLabel: "Previsões" });
-  await recordAuditLog({ userId: user.id, action: "STATUS_CHANGE", entity: "ForecastRequest", entityId: forecastId, details: { status: data.status, reviewNote: data.reviewNote || null } });
-  revalidatePath("/aprovacoes/previsoes");
 }
 
 export async function markNotificationRead(notificationId: string): Promise<void> {
-  const user = await requireUser();
-  const result = await prisma.notification.updateMany({
-    where: { id: notificationId, recipientId: user.id, readAt: null },
-    data: { readAt: new Date() },
-  });
-  if (result.count > 0) {
-    await recordAuditLog({
-      userId: user.id,
-      action: "UPDATE",
-      entity: "Notification",
-      entityId: notificationId,
-      details: { read: true },
+  try {
+    const user = await requireUser();
+    const result = await prisma.notification.updateMany({
+      where: { id: notificationId, recipientId: user.id, readAt: null },
+      data: { readAt: new Date() },
     });
+    if (result.count > 0) {
+      await recordAuditLog({
+        userId: user.id,
+        action: "UPDATE",
+        entity: "Notification",
+        entityId: notificationId,
+        details: { read: true },
+      });
+    }
+    revalidatePath("/notificacoes");
+  } catch (error) {
+    handleActionError(error);
   }
-  revalidatePath("/notificacoes");
 }
 
 export async function markAllNotificationsRead(): Promise<void> {
-  const user = await requireUser();
-  const result = await prisma.notification.updateMany({
-    where: { recipientId: user.id, readAt: null },
-    data: { readAt: new Date() },
-  });
-  if (result.count > 0) {
-    await recordAuditLog({
-      userId: user.id,
-      action: "UPDATE",
-      entity: "Notification",
-      entityId: user.id,
-      details: { readAll: true, count: result.count },
+  try {
+    const user = await requireUser();
+    const result = await prisma.notification.updateMany({
+      where: { recipientId: user.id, readAt: null },
+      data: { readAt: new Date() },
     });
+    if (result.count > 0) {
+      await recordAuditLog({
+        userId: user.id,
+        action: "UPDATE",
+        entity: "Notification",
+        entityId: user.id,
+        details: { readAll: true, count: result.count },
+      });
+    }
+    revalidatePath("/notificacoes");
+  } catch (error) {
+    handleActionError(error);
   }
-  revalidatePath("/notificacoes");
 }
 
 export async function saveUserPreferences(formData: FormData): Promise<void> {
-  const user = await requireUser();
-  const density = formData.get("density") === "compact" ? "compact" : "comfortable";
-  const theme = formData.get("theme") === "light" ? "light" : "dark";
-  const startPage = ["/", "/metas", "/farol", "/agenda"].includes(String(formData.get("startPage"))) ? String(formData.get("startPage")) : "/";
-  const dashboardMonths = Math.min(12, Math.max(1, Number(formData.get("dashboardMonths")) || 12));
-  const blankMonths = Math.min(12, Math.max(0, Number(formData.get("blankMonths")) || 0));
-  const basePeriodRaw = String(formData.get("basePeriod") ?? "");
-  const basePeriod = /^\d{4}-(0[1-9]|1[0-2])$/.test(basePeriodRaw) ? basePeriodRaw : null;
-  const preferences = { density, theme, startPage, emailNotifications: formData.get("emailNotifications") === "on", dashboardMonths, blankMonths, basePeriod, showDelegated: formData.get("showDelegated") === "on", showTeamReds: formData.get("showTeamReds") === "on" };
-  await prisma.userPreference.upsert({ where: { userId: user.id }, create: { userId: user.id, ...preferences }, update: preferences });
-  await recordAuditLog({ userId: user.id, action: "UPDATE", entity: "UserPreference", entityId: user.id, details: preferences });
-  // Theme and density are consumed by the shared application layout, while
-  // /inicio resolves the preferred destination after a sign-in.
-  revalidatePath("/", "layout");
-  revalidatePath("/inicio");
-  revalidatePath("/preferencias");
+  try {
+    const user = await requireUser();
+    const density = formData.get("density") === "compact" ? "compact" : "comfortable";
+    const theme = formData.get("theme") === "light" ? "light" : "dark";
+    const startPage = ["/", "/metas", "/farol", "/agenda"].includes(String(formData.get("startPage"))) ? String(formData.get("startPage")) : "/";
+    const dashboardMonths = Math.min(12, Math.max(1, Number(formData.get("dashboardMonths")) || 12));
+    const blankMonths = Math.min(12, Math.max(0, Number(formData.get("blankMonths")) || 0));
+    const basePeriodRaw = String(formData.get("basePeriod") ?? "");
+    const basePeriod = /^\d{4}-(0[1-9]|1[0-2])$/.test(basePeriodRaw) ? basePeriodRaw : null;
+    const preferences = { density, theme, startPage, emailNotifications: formData.get("emailNotifications") === "on", dashboardMonths, blankMonths, basePeriod, showDelegated: formData.get("showDelegated") === "on", showTeamReds: formData.get("showTeamReds") === "on" };
+    await prisma.userPreference.upsert({ where: { userId: user.id }, create: { userId: user.id, ...preferences }, update: preferences });
+    await recordAuditLog({ userId: user.id, action: "UPDATE", entity: "UserPreference", entityId: user.id, details: preferences });
+    // Theme and density are consumed by the shared application layout, while
+    // /inicio resolves the preferred destination after a sign-in.
+    revalidatePath("/", "layout");
+    revalidatePath("/inicio");
+    revalidatePath("/preferencias");
+  } catch (error) {
+    handleActionError(error);
+  }
 }
 
 /**
@@ -1245,16 +1306,21 @@ export async function updateUser(
 }
 
 /** Clears the login rate-limit bucket for a user locked out by failed attempts. */
-export async function unlockUserAccount(targetUserId: string) {
-  const actingUser = await requireUser("users");
-  if (actingUser.role !== "ADMIN") throw new ForbiddenError("Apenas administradores podem desbloquear contas.");
+export async function unlockUserAccount(targetUserId: string): Promise<ActionResult> {
+  try {
+    const actingUser = await requireUser("users");
+    if (actingUser.role !== "ADMIN") throw new ForbiddenError("Apenas administradores podem desbloquear contas.");
 
-  const target = await prisma.user.findUnique({ where: { id: targetUserId }, select: { username: true } });
-  if (!target) throw new ForbiddenError("Usuário não encontrado.");
+    const target = await prisma.user.findUnique({ where: { id: targetUserId }, select: { username: true } });
+    if (!target) throw new ForbiddenError("Usuário não encontrado.");
 
-  resetRateLimit("login", target.username.trim().toLowerCase());
-  await recordAuditLog({ userId: actingUser.id, action: "UPDATE", entity: "User", entityId: targetUserId, details: { unlockedLogin: true } });
-  revalidatePath(`/usuarios/${targetUserId}/editar`);
+    resetRateLimit("login", target.username.trim().toLowerCase());
+    await recordAuditLog({ userId: actingUser.id, action: "UPDATE", entity: "User", entityId: targetUserId, details: { unlockedLogin: true } });
+    revalidatePath(`/usuarios/${targetUserId}/editar`);
+    return { ok: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
 }
 
 export async function createAccessProfile(_prevState: FormActionState, formData: FormData): Promise<FormActionState> {
@@ -1317,22 +1383,27 @@ export async function saveCompanySettings(_prevState: FormActionState, formData:
   return {};
 }
 
-export async function setUserActive(targetUserId: string, active: boolean) {
-  const actingUser = await requireUser("users");
-  if (actingUser.role !== "ADMIN") throw new Error("Apenas administradores podem fazer isso.");
-  if (targetUserId === actingUser.id && !active) {
-    throw new Error("Você não pode desativar sua própria conta.");
-  }
+export async function setUserActive(targetUserId: string, active: boolean): Promise<ActionResult> {
+  try {
+    const actingUser = await requireUser("users");
+    if (actingUser.role !== "ADMIN") throw new Error("Apenas administradores podem fazer isso.");
+    if (targetUserId === actingUser.id && !active) {
+      throw new Error("Você não pode desativar sua própria conta.");
+    }
 
-  await prisma.user.update({ where: { id: targetUserId }, data: { active } });
-  await recordAuditLog({
-    userId: actingUser.id,
-    action: "STATUS_CHANGE",
-    entity: "User",
-    entityId: targetUserId,
-    details: { active },
-  });
-  revalidatePath("/usuarios");
+    await prisma.user.update({ where: { id: targetUserId }, data: { active } });
+    await recordAuditLog({
+      userId: actingUser.id,
+      action: "STATUS_CHANGE",
+      entity: "User",
+      entityId: targetUserId,
+      details: { active },
+    });
+    revalidatePath("/usuarios");
+    return { ok: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
 }
 
 // ── Departamentos ────────────────────────────────────────────────────────
@@ -1366,40 +1437,45 @@ export async function createDepartment(
   return {};
 }
 
-export async function deleteDepartment(departmentId: string) {
-  const actingUser = await requireUser("departments");
-  if (actingUser.role !== "ADMIN") {
-    throw new Error("Apenas administradores podem excluir departamentos.");
+export async function deleteDepartment(departmentId: string): Promise<ActionResult> {
+  try {
+    const actingUser = await requireUser("departments");
+    if (actingUser.role !== "ADMIN") {
+      throw new Error("Apenas administradores podem excluir departamentos.");
+    }
+
+    const department = await prisma.department.findUnique({
+      where: { id: departmentId },
+      select: { name: true, _count: { select: { users: true } } },
+    });
+    if (!department) throw new Error("Departamento não encontrado.");
+
+    // KPIs and locks just detach (departmentId → null) on delete, but people
+    // left in an orphaned department would silently vanish from every
+    // department-scoped view — reassign or deactivate them first.
+    if (department._count.users > 0) {
+      throw new Error(
+        `Remova ou realoque as ${department._count.users} pessoa(s) do departamento "${department.name}" antes de excluí-lo.`
+      );
+    }
+
+    await prisma.department.delete({ where: { id: departmentId } });
+
+    await recordAuditLog({
+      userId: actingUser.id,
+      action: "DELETE",
+      entity: "Department",
+      entityId: departmentId,
+      details: { name: department.name },
+    });
+
+    revalidatePath("/departamentos");
+    revalidatePath("/usuarios");
+    revalidatePath("/metas/novo");
+    return { ok: true };
+  } catch (error) {
+    return handleActionError(error);
   }
-
-  const department = await prisma.department.findUnique({
-    where: { id: departmentId },
-    select: { name: true, _count: { select: { users: true } } },
-  });
-  if (!department) throw new Error("Departamento não encontrado.");
-
-  // KPIs and locks just detach (departmentId → null) on delete, but people
-  // left in an orphaned department would silently vanish from every
-  // department-scoped view — reassign or deactivate them first.
-  if (department._count.users > 0) {
-    throw new Error(
-      `Remova ou realoque as ${department._count.users} pessoa(s) do departamento "${department.name}" antes de excluí-lo.`
-    );
-  }
-
-  await prisma.department.delete({ where: { id: departmentId } });
-
-  await recordAuditLog({
-    userId: actingUser.id,
-    action: "DELETE",
-    entity: "Department",
-    entityId: departmentId,
-    details: { name: department.name },
-  });
-
-  revalidatePath("/departamentos");
-  revalidatePath("/usuarios");
-  revalidatePath("/metas/novo");
 }
 
 // ── Tarefas (5W2H avulso) ──────────────────────────────────────────────────
@@ -1417,16 +1493,21 @@ export async function createStrategicProject(_prevState: FormActionState, formDa
   redirect("/projetos");
 }
 
-export async function updateStrategicProjectStatus(projectId: string, formData: FormData) {
-  const user = await requireUser("tasks");
-  const project = await prisma.strategicProject.findUnique({ where: { id: projectId } });
-  if (!project) throw new ForbiddenError("Projeto não encontrado.");
-  if (project.ownerId !== user.id && user.role !== "ADMIN") throw new ForbiddenError();
-  const parsed = updateStrategicProjectStatusSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) throw new Error("Status inválido.");
-  await prisma.strategicProject.update({ where: { id: projectId }, data: { status: parsed.data.status } });
-  await recordAuditLog({ userId: user.id, action: "STATUS_CHANGE", entity: "StrategicProject", entityId: projectId, details: { status: parsed.data.status } });
-  revalidatePath("/projetos");
+export async function updateStrategicProjectStatus(projectId: string, formData: FormData): Promise<void> {
+  try {
+    const user = await requireUser("tasks");
+    const project = await prisma.strategicProject.findUnique({ where: { id: projectId } });
+    if (!project) throw new ForbiddenError("Projeto não encontrado.");
+    if (project.ownerId !== user.id && user.role !== "ADMIN") throw new ForbiddenError();
+    const parsed = updateStrategicProjectStatusSchema.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) throw new Error("Status inválido.");
+    await prisma.strategicProject.update({ where: { id: projectId }, data: { status: parsed.data.status } });
+    await recordAuditLog({ userId: user.id, action: "STATUS_CHANGE", entity: "StrategicProject", entityId: projectId, details: { status: parsed.data.status } });
+    revalidatePath("/projetos");
+    return;
+  } catch (error) {
+    handleActionError(error);
+  }
 }
 
 export async function createTask(_prevState: FormActionState, formData: FormData): Promise<FormActionState> {
@@ -1469,43 +1550,53 @@ export async function createTask(_prevState: FormActionState, formData: FormData
   redirect("/tarefas");
 }
 
-export async function updateTaskStatus(taskId: string, formData: FormData) {
-  const user = await requireUser("tasks");
-  const task = await prisma.task.findUnique({ where: { id: taskId } });
-  if (!task) throw new ForbiddenError("Tarefa não encontrada.");
-  if (task.createdById !== user.id && task.assigneeId !== user.id && user.role !== "ADMIN") {
-    throw new ForbiddenError();
+export async function updateTaskStatus(taskId: string, formData: FormData): Promise<ActionResult> {
+  try {
+    const user = await requireUser("tasks");
+    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    if (!task) throw new ForbiddenError("Tarefa não encontrada.");
+    if (task.createdById !== user.id && task.assigneeId !== user.id && user.role !== "ADMIN") {
+      throw new ForbiddenError();
+    }
+
+    const parsed = updateTaskStatusSchema.safeParse(Object.fromEntries(formData));
+    if (!parsed.success) throw new Error("Status inválido.");
+
+    await prisma.task.update({ where: { id: taskId }, data: { status: parsed.data.status } });
+    await recordAuditLog({
+      userId: user.id,
+      action: "STATUS_CHANGE",
+      entity: "Task",
+      entityId: taskId,
+      details: { from: task.status, to: parsed.data.status },
+    });
+    revalidatePath("/tarefas");
+    return { ok: true };
+  } catch (error) {
+    return handleActionError(error);
   }
-
-  const parsed = updateTaskStatusSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) throw new Error("Status inválido.");
-
-  await prisma.task.update({ where: { id: taskId }, data: { status: parsed.data.status } });
-  await recordAuditLog({
-    userId: user.id,
-    action: "STATUS_CHANGE",
-    entity: "Task",
-    entityId: taskId,
-    details: { from: task.status, to: parsed.data.status },
-  });
-  revalidatePath("/tarefas");
 }
 
-export async function deleteTask(taskId: string) {
-  const user = await requireUser("tasks");
-  const task = await prisma.task.findUnique({ where: { id: taskId } });
-  if (!task) throw new ForbiddenError("Tarefa não encontrada.");
-  if (task.createdById !== user.id && user.role !== "ADMIN") throw new ForbiddenError();
+export async function deleteTask(taskId: string): Promise<ActionResult> {
+  try {
+    const user = await requireUser("tasks");
+    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    if (!task) throw new ForbiddenError("Tarefa não encontrada.");
+    if (task.createdById !== user.id && user.role !== "ADMIN") throw new ForbiddenError();
 
-  await prisma.task.delete({ where: { id: taskId } });
-  await recordAuditLog({
-    userId: user.id,
-    action: "DELETE",
-    entity: "Task",
-    entityId: taskId,
-    details: { what: task.what, assigneeId: task.assigneeId, actionPlanId: task.actionPlanId },
-  });
-  revalidatePath("/tarefas");
+    await prisma.task.delete({ where: { id: taskId } });
+    await recordAuditLog({
+      userId: user.id,
+      action: "DELETE",
+      entity: "Task",
+      entityId: taskId,
+      details: { what: task.what, assigneeId: task.assigneeId, actionPlanId: task.actionPlanId },
+    });
+    revalidatePath("/tarefas");
+    return { ok: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
 }
 
 // ── Agenda ──────────────────────────────────────────────────────────────────
@@ -1547,21 +1638,26 @@ export async function createEvent(_prevState: FormActionState, formData: FormDat
   redirect("/agenda");
 }
 
-export async function deleteEvent(eventId: string) {
-  const user = await requireUser("agenda");
-  const event = await prisma.calendarEvent.findUnique({ where: { id: eventId } });
-  if (!event) throw new ForbiddenError("Evento não encontrado.");
-  if (event.createdById !== user.id && user.role !== "ADMIN") throw new ForbiddenError();
+export async function deleteEvent(eventId: string): Promise<ActionResult> {
+  try {
+    const user = await requireUser("agenda");
+    const event = await prisma.calendarEvent.findUnique({ where: { id: eventId } });
+    if (!event) throw new ForbiddenError("Evento não encontrado.");
+    if (event.createdById !== user.id && user.role !== "ADMIN") throw new ForbiddenError();
 
-  await prisma.calendarEvent.delete({ where: { id: eventId } });
-  await recordAuditLog({
-    userId: user.id,
-    action: "DELETE",
-    entity: "CalendarEvent",
-    entityId: eventId,
-    details: { title: event.title, category: event.category },
-  });
-  revalidatePath("/agenda");
+    await prisma.calendarEvent.delete({ where: { id: eventId } });
+    await recordAuditLog({
+      userId: user.id,
+      action: "DELETE",
+      entity: "CalendarEvent",
+      entityId: eventId,
+      details: { title: event.title, category: event.category },
+    });
+    revalidatePath("/agenda");
+    return { ok: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
 }
 
 // ── Delegação de item (Configurar Delegação) ────────────────────────────────
@@ -1611,21 +1707,26 @@ export async function createDelegation(
   return {};
 }
 
-export async function removeDelegation(delegationId: string) {
-  const user = await requireUser("users");
-  const delegation = await prisma.kpiDelegation.findUnique({ where: { id: delegationId } });
-  if (!delegation) throw new ForbiddenError("Delegação não encontrada.");
-  await assertKpiOwnerOrAdmin(delegation.kpiId, user);
+export async function removeDelegation(delegationId: string): Promise<ActionResult> {
+  try {
+    const user = await requireUser("users");
+    const delegation = await prisma.kpiDelegation.findUnique({ where: { id: delegationId } });
+    if (!delegation) throw new ForbiddenError("Delegação não encontrada.");
+    await assertKpiOwnerOrAdmin(delegation.kpiId, user);
 
-  await prisma.kpiDelegation.delete({ where: { id: delegationId } });
-  await recordAuditLog({
-    userId: user.id,
-    action: "DELETE",
-    entity: "KpiDelegation",
-    entityId: delegationId,
-    details: { kpiId: delegation.kpiId, delegateId: delegation.delegateId },
-  });
-  revalidatePath(`/metas/${delegation.kpiId}`);
+    await prisma.kpiDelegation.delete({ where: { id: delegationId } });
+    await recordAuditLog({
+      userId: user.id,
+      action: "DELETE",
+      entity: "KpiDelegation",
+      entityId: delegationId,
+      details: { kpiId: delegation.kpiId, delegateId: delegation.delegateId },
+    });
+    revalidatePath(`/metas/${delegation.kpiId}`);
+    return { ok: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
 }
 
 // ── Facilitador (Cadastrar Facilitador / Meus Facilitados) ─────────────────
@@ -1672,22 +1773,27 @@ export async function createFacilitation(
   return {};
 }
 
-export async function removeFacilitation(facilitationId: string) {
-  const user = await requireUser("users");
-  if (user.role !== "ADMIN") throw new ForbiddenError("Apenas administradores podem remover facilitadores.");
+export async function removeFacilitation(facilitationId: string): Promise<ActionResult> {
+  try {
+    const user = await requireUser("users");
+    if (user.role !== "ADMIN") throw new ForbiddenError("Apenas administradores podem remover facilitadores.");
 
-  const facilitation = await prisma.facilitation.findUnique({ where: { id: facilitationId } });
-  if (!facilitation) throw new ForbiddenError("Facilitação não encontrada.");
+    const facilitation = await prisma.facilitation.findUnique({ where: { id: facilitationId } });
+    if (!facilitation) throw new ForbiddenError("Facilitação não encontrada.");
 
-  await prisma.facilitation.delete({ where: { id: facilitationId } });
-  await recordAuditLog({
-    userId: user.id,
-    action: "DELETE",
-    entity: "Facilitation",
-    entityId: facilitationId,
-    details: { facilitatorId: facilitation.facilitatorId, facilitatedId: facilitation.facilitatedId },
-  });
-  revalidatePath(`/usuarios/${facilitation.facilitatorId}/editar`);
+    await prisma.facilitation.delete({ where: { id: facilitationId } });
+    await recordAuditLog({
+      userId: user.id,
+      action: "DELETE",
+      entity: "Facilitation",
+      entityId: facilitationId,
+      details: { facilitatorId: facilitation.facilitatorId, facilitatedId: facilitation.facilitatedId },
+    });
+    revalidatePath(`/usuarios/${facilitation.facilitatorId}/editar`);
+    return { ok: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
 }
 
 // ── Subordinação (multi-gestor) ─────────────────────────────────────────────
@@ -1727,44 +1833,54 @@ export async function addSubordination(
 }
 
 /** Marks one row as the principal manager, demoting whichever row held it before. */
-export async function setPrincipalSubordination(subordinationId: string) {
-  const actingUser = await requireUser("users");
-  if (actingUser.role !== "ADMIN") throw new ForbiddenError("Apenas administradores podem configurar subordinação.");
+export async function setPrincipalSubordination(subordinationId: string): Promise<ActionResult> {
+  try {
+    const actingUser = await requireUser("users");
+    if (actingUser.role !== "ADMIN") throw new ForbiddenError("Apenas administradores podem configurar subordinação.");
 
-  const target = await prisma.subordination.findUnique({ where: { id: subordinationId } });
-  if (!target) throw new ForbiddenError("Vínculo não encontrado.");
+    const target = await prisma.subordination.findUnique({ where: { id: subordinationId } });
+    if (!target) throw new ForbiddenError("Vínculo não encontrado.");
 
-  await prisma.$transaction([
-    prisma.subordination.updateMany({ where: { userId: target.userId, principal: true }, data: { principal: false } }),
-    prisma.subordination.update({ where: { id: subordinationId }, data: { principal: true } }),
-    prisma.user.update({ where: { id: target.userId }, data: { managerId: target.managerId } }),
-  ]);
-  await recordAuditLog({ userId: actingUser.id, action: "UPDATE", entity: "Subordination", entityId: subordinationId, details: { setPrincipal: true } });
-  revalidatePath(`/usuarios/${target.userId}/editar`);
+    await prisma.$transaction([
+      prisma.subordination.updateMany({ where: { userId: target.userId, principal: true }, data: { principal: false } }),
+      prisma.subordination.update({ where: { id: subordinationId }, data: { principal: true } }),
+      prisma.user.update({ where: { id: target.userId }, data: { managerId: target.managerId } }),
+    ]);
+    await recordAuditLog({ userId: actingUser.id, action: "UPDATE", entity: "Subordination", entityId: subordinationId, details: { setPrincipal: true } });
+    revalidatePath(`/usuarios/${target.userId}/editar`);
+    return { ok: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
 }
 
 /** Removes one manager relationship. If it was the principal, another remaining row (if any) is promoted. */
-export async function removeSubordination(subordinationId: string) {
-  const actingUser = await requireUser("users");
-  if (actingUser.role !== "ADMIN") throw new ForbiddenError("Apenas administradores podem configurar subordinação.");
+export async function removeSubordination(subordinationId: string): Promise<ActionResult> {
+  try {
+    const actingUser = await requireUser("users");
+    if (actingUser.role !== "ADMIN") throw new ForbiddenError("Apenas administradores podem configurar subordinação.");
 
-  const target = await prisma.subordination.findUnique({ where: { id: subordinationId } });
-  if (!target) throw new ForbiddenError("Vínculo não encontrado.");
+    const target = await prisma.subordination.findUnique({ where: { id: subordinationId } });
+    if (!target) throw new ForbiddenError("Vínculo não encontrado.");
 
-  await prisma.subordination.delete({ where: { id: subordinationId } });
+    await prisma.subordination.delete({ where: { id: subordinationId } });
 
-  let nextPrincipalManagerId: string | null = null;
-  if (target.principal) {
-    const remaining = await prisma.subordination.findFirst({ where: { userId: target.userId }, orderBy: { createdAt: "asc" } });
-    if (remaining) {
-      await prisma.subordination.update({ where: { id: remaining.id }, data: { principal: true } });
-      nextPrincipalManagerId = remaining.managerId;
+    let nextPrincipalManagerId: string | null = null;
+    if (target.principal) {
+      const remaining = await prisma.subordination.findFirst({ where: { userId: target.userId }, orderBy: { createdAt: "asc" } });
+      if (remaining) {
+        await prisma.subordination.update({ where: { id: remaining.id }, data: { principal: true } });
+        nextPrincipalManagerId = remaining.managerId;
+      }
+      await prisma.user.update({ where: { id: target.userId }, data: { managerId: nextPrincipalManagerId } });
     }
-    await prisma.user.update({ where: { id: target.userId }, data: { managerId: nextPrincipalManagerId } });
-  }
 
-  await recordAuditLog({ userId: actingUser.id, action: "DELETE", entity: "Subordination", entityId: subordinationId, details: { userId: target.userId, managerId: target.managerId } });
-  revalidatePath(`/usuarios/${target.userId}/editar`);
+    await recordAuditLog({ userId: actingUser.id, action: "DELETE", entity: "Subordination", entityId: subordinationId, details: { userId: target.userId, managerId: target.managerId } });
+    revalidatePath(`/usuarios/${target.userId}/editar`);
+    return { ok: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
 }
 
 // ── Fechamento de ciclo ────────────────────────────────────────────────────
@@ -1805,25 +1921,30 @@ export async function closePeriod(_prevState: FormActionState, formData: FormDat
   return {};
 }
 
-export async function reopenPeriod(period: string) {
-  const user = await requireUser("measurements");
-  if (user.role !== "ADMIN") throw new ForbiddenError("Apenas administradores podem reabrir ciclos.");
+export async function reopenPeriod(period: string): Promise<ActionResult> {
+  try {
+    const user = await requireUser("measurements");
+    if (user.role !== "ADMIN") throw new ForbiddenError("Apenas administradores podem reabrir ciclos.");
 
-  const lock = await prisma.periodLock.findFirst({ where: { period, departmentId: null } });
-  if (!lock) throw new ForbiddenError("Ciclo não está fechado.");
+    const lock = await prisma.periodLock.findFirst({ where: { period, departmentId: null } });
+    if (!lock) throw new ForbiddenError("Ciclo não está fechado.");
 
-  await prisma.periodLock.delete({ where: { id: lock.id } });
-  await prisma.periodLockEvent.create({
-    data: { period, departmentId: null, closed: false, actorId: user.id, note: lock.note },
-  });
-  await recordAuditLog({
-    userId: user.id,
-    action: "STATUS_CHANGE",
-    entity: "PeriodLock",
-    entityId: lock.id,
-    details: { period, closed: false, note: lock.note },
-  });
+    await prisma.periodLock.delete({ where: { id: lock.id } });
+    await prisma.periodLockEvent.create({
+      data: { period, departmentId: null, closed: false, actorId: user.id, note: lock.note },
+    });
+    await recordAuditLog({
+      userId: user.id,
+      action: "STATUS_CHANGE",
+      entity: "PeriodLock",
+      entityId: lock.id,
+      details: { period, closed: false, note: lock.note },
+    });
 
-  revalidatePath("/metas");
-  revalidatePath("/");
+    revalidatePath("/metas");
+    revalidatePath("/");
+    return { ok: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
 }

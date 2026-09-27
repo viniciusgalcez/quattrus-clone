@@ -59,7 +59,12 @@ vi.mock("@/lib/authz", () => ({
   assertKpiEditable: vi.fn(),
   assertFcaResolved: vi.fn(),
   assertActionPlanEditable: vi.fn(),
-  ForbiddenError: class ForbiddenError extends Error {},
+  ForbiddenError: class ForbiddenError extends Error {
+    constructor(message = "Você não tem permissão para esta ação.") {
+      super(message);
+      this.name = "ForbiddenError";
+    }
+  },
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
@@ -506,7 +511,9 @@ describe("facilitation management", () => {
   it("does not let a non-admin remove a facilitation link", async () => {
     requireUserMock.mockResolvedValue(stub({ id: "facilitator-1", role: "COLABORADOR" }));
 
-    await expect(removeFacilitation("facil-1")).rejects.toThrow(/administradores/i);
+    const result = await removeFacilitation("facil-1");
+
+    expect(result).toEqual({ ok: false, error: expect.stringMatching(/administradores/i) });
 
     expect(facilitationFindUnique).not.toHaveBeenCalled();
     expect(facilitationDelete).not.toHaveBeenCalled();

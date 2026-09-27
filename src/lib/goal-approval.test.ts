@@ -43,19 +43,22 @@ describe("approveGoal", () => {
 
   it("blocks the owner from approving their own goal, even as admin", async () => {
     requireUserMock.mockResolvedValue(stub({ id: "report-1", role: "ADMIN" }));
-    await expect(approveGoal("meas-1")).rejects.toThrow("Você não pode aprovar sua própria meta.");
+    const result = await approveGoal("meas-1");
+    expect(result.ok).toBe(false);
     expect(measurementUpdate).not.toHaveBeenCalled();
   });
 
   it("blocks a manager who cannot view the owner", async () => {
     canViewMock.mockResolvedValue(false);
-    await expect(approveGoal("meas-1")).rejects.toThrow("Você não tem permissão");
+    const result = await approveGoal("meas-1");
+    expect(result.ok).toBe(false);
     expect(measurementUpdate).not.toHaveBeenCalled();
   });
 
-  it("throws when the measurement does not exist", async () => {
+  it("returns error when the measurement does not exist", async () => {
     measurementFindUnique.mockResolvedValue(null);
-    await expect(approveGoal("ghost")).rejects.toThrow("Medição não encontrada.");
+    const result = await approveGoal("ghost");
+    expect(result.ok).toBe(false);
   });
 });
 
@@ -70,7 +73,7 @@ describe("approveAllPendingGoals", () => {
   });
 
   it("only batches pending goals from the manager's team", async () => {
-    await expect(approveAllPendingGoals()).resolves.toBe(2);
+    await expect(approveAllPendingGoals()).resolves.toEqual({ ok: true });
     expect(measurementFindMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ kpi: { ownerId: { in: ["report-1"] }, archivedAt: null } }) }));
     expect(measurementUpdate).toHaveBeenCalledTimes(2);
   });

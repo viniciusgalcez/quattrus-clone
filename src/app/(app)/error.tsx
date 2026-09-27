@@ -4,6 +4,17 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 
+const OPAQUE_PATTERNS = [/^Minified React error/i, /^An error occurred in the Server Components render/i];
+const GENERIC_FALLBACK = "Algo deu errado ao processar sua solicitação. Tente novamente em instantes.";
+
+function friendlyMessage(error: Error): string {
+  const msg = error.message;
+  if (!msg || msg === "Não autenticado.") return "Sua sessão expirou. Faça login novamente.";
+  if (OPAQUE_PATTERNS.some((p) => p.test(msg))) return GENERIC_FALLBACK;
+  if (msg.length > 300) return GENERIC_FALLBACK;
+  return msg;
+}
+
 export default function AppError({
   error,
   reset,
@@ -24,9 +35,7 @@ export default function AppError({
         Não foi possível concluir a ação
       </h1>
       <p className="max-w-[420px] text-[12.5px] text-[var(--color-ink-500)]">
-        {error.message && error.message !== "Não autenticado."
-          ? error.message
-          : "Algo deu errado ao processar sua solicitação. Tente novamente."}
+        {friendlyMessage(error)}
       </p>
       <div className="mt-2 flex gap-2">
         <button onClick={() => reset()} className="btn btn-primary">

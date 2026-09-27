@@ -7,3 +7,8 @@ node_modules
 backups
 coverage
 *.tsbuildinfo
+.claude
+.flex
+0)
+ownerId
+{,+

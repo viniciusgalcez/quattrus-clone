@@ -24,7 +24,7 @@ export default async function AppLayout({
       // height even while the address bar is showing, pushing the header
       // above the visible fold — mobile users then land on a page with no
       // way back to the sidebar.
-      className="app-theme fixed inset-0 flex h-dvh min-h-0 overflow-hidden bg-[var(--color-bg)] text-[var(--color-ink-900)]"
+      className="app-theme fixed inset-0 z-0 flex h-dvh min-h-0 overflow-hidden bg-[var(--color-bg)] text-[var(--color-ink-900)]"
     >
       <Sidebar isManager={isManager} isAdmin={isAdmin} permissions={session?.user.permissions ?? []} />
       {/* min-w-0 overrides the flex-item default (min-width: auto), which

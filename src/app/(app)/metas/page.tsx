@@ -76,7 +76,7 @@ export default async function MetasPage() {
   const hasForaDaMeta = countByStatus.VERMELHO > 0 || countByStatus.CRITICO > 0 || countByStatus.AMARELO > 0;
 
   return (
-    <div className="flex flex-col gap-2 p-2">
+    <div className="flex flex-col gap-2 p-2 sm:p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="page-title">Metas e indicadores</h1>
@@ -84,13 +84,13 @@ export default async function MetasPage() {
             Ciclo de {periodLabel(period)} — acompanhe seus resultados e edite os valores.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full items-center gap-2 sm:w-auto">
           {session.user.role === "ADMIN" && (
-            <Link href="/metas/arquivados" className="btn">
+            <Link href="/metas/arquivados" className="btn min-h-[44px] flex-1 justify-center sm:flex-none">
               <Archive className="h-4 w-4" aria-hidden="true" /> Arquivados
             </Link>
           )}
-          <Link href="/metas/novo" className="btn btn-primary">
+          <Link href="/metas/novo" className="btn btn-primary min-h-[44px] flex-1 justify-center sm:flex-none">
             <Plus className="h-4 w-4" aria-hidden="true" /> Cadastrar meta
           </Link>
         </div>
@@ -145,10 +145,10 @@ export default async function MetasPage() {
 
       {total > 0 && (
         <div className="card p-2">
-          <div className="mb-1 flex items-center justify-between">
-            <span className="text-[14px] font-semibold text-[var(--color-ink-900)]">Desempenho Geral do Ciclo</span>
-            <span className="text-[13px] font-medium text-[var(--color-ink-500)]">
-              {Math.round((countByStatus.VERDE / total) * 100) || 0}% dos indicadores atingiram a meta
+          <div className="mb-1 flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-[14px] font-semibold text-[var(--color-ink-900)]">Desempenho Geral</span>
+            <span className="text-[12px] font-medium text-[var(--color-ink-500)] sm:text-[13px]">
+              {Math.round((countByStatus.VERDE / total) * 100) || 0}% dos indicadores
             </span>
           </div>
           <div className="meter">
