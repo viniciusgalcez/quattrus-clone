@@ -1,6 +1,7 @@
 import { LogOut, Settings2 } from "lucide-react";
 import { signOut } from "@/lib/auth";
 import { NotificationBell } from "@/components/NotificationBell";
+import { CapricornioLogo } from "@/components/CapricornioLogo";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -32,6 +33,10 @@ export function Header({ user, children }: { user: HeaderUser, children?: React.
     <header className="shell-header flex h-[68px] shrink-0 items-center justify-between gap-2 px-3 sm:px-6">
       <div className="flex min-w-0 items-center gap-3">
         {children}
+        <Link href="/" className="flex items-center gap-2 sm:hidden" aria-label="Capri Gestiona, página inicial">
+          <CapricornioLogo size={28} />
+          <span className="text-[13px] font-semibold text-[var(--color-ink-900)]">Capri Gestiona</span>
+        </Link>
         <span className="hidden text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--color-ink-500)] sm:inline">Gestão de desempenho</span>
       </div>
       <div className="flex min-w-0 items-center justify-end gap-1 sm:gap-2">

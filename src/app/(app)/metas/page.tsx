@@ -104,7 +104,7 @@ export default async function MetasPage() {
       )}
 
       {total > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
           <div className="card p-2 flex flex-col justify-between">
             <div className="flex items-center gap-1 mb-1">
               <Target className="h-4 w-4 text-[var(--color-ink-500)]" />
