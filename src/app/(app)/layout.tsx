@@ -2,6 +2,7 @@
 import { Header } from "@/components/layout/Header";
 import { auth } from "@/lib/auth";
 import { MobileSidebarToggle } from "@/components/layout/MobileSidebarToggle";
+import { ScrollToTop } from "@/components/ScrollToTop";
 
 export default async function AppLayout({
   children,
@@ -37,6 +38,7 @@ export default async function AppLayout({
             <Sidebar isManager={isManager} isAdmin={isAdmin} permissions={session?.user.permissions ?? []} className="flex" />
           </MobileSidebarToggle>
         </Header>
+        <ScrollToTop />
         <main className="app-main min-w-0 flex-1 overflow-x-hidden overflow-y-auto">{children}</main>
       </div>
     </div>

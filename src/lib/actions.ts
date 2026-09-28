@@ -864,13 +864,24 @@ export async function saveActionPlan(
   _prevState: FormActionState,
   formData: FormData
 ): Promise<FormActionState> {
-  const user = await requireUser("tasks");
+  let user;
+  try {
+    user = await requireUser("tasks");
+  } catch (err) {
+    if (err instanceof ForbiddenError) return { error: err.message };
+    if (err instanceof Error && err.message === "Não autenticado.")
+      return { error: "Sua sessão expirou. Faça login novamente." };
+    return { error: "Não foi possível completar a ação." };
+  }
 
   const measurementId = String(formData.get("measurementId"));
-  const measurement = await assertMeasurementEditable(measurementId, user);
-  // kpiId is derived from the measurement itself, never trusted from the
-  // form — otherwise an ActionPlan could be pointed at a KPI that doesn't
-  // match its measurement, corrupting per-owner counters.
+  let measurement;
+  try {
+    measurement = await assertMeasurementEditable(measurementId, user);
+  } catch (err) {
+    if (err instanceof Error) return { error: err.message };
+    return { error: "Medição não acessível." };
+  }
   const kpiId = measurement.kpiId;
 
   const parsed = saveActionPlanSchema.safeParse(Object.fromEntries(formData));
@@ -895,29 +906,36 @@ export async function saveActionPlan(
     howMuch: v.howMuch,
   };
 
-  const plan = await prisma.actionPlan.upsert({
-    where: { measurementId },
-    update: data,
-    create: {
-      ...data,
-      measurementId,
-      kpiId,
-      createdById: user.id,
-      status: "ABERTO",
-    },
-  });
+  let redirectTo: string | undefined;
+  try {
+    const plan = await prisma.actionPlan.upsert({
+      where: { measurementId },
+      update: data,
+      create: {
+        ...data,
+        measurementId,
+        kpiId,
+        createdById: user.id,
+        status: "ABERTO",
+      },
+    });
 
-  await recordAuditLog({
-    userId: user.id,
-    action: "UPSERT",
-    entity: "ActionPlan",
-    entityId: plan.id,
-    details: { measurementId, kpiId },
-  });
+    await recordAuditLog({
+      userId: user.id,
+      action: "UPSERT",
+      entity: "ActionPlan",
+      entityId: plan.id,
+      details: { measurementId, kpiId },
+    });
 
-  revalidatePath("/metas");
-  revalidatePath("/");
-  redirect("/metas");
+    revalidatePath("/metas");
+    revalidatePath("/");
+    redirectTo = "/metas";
+  } catch (err) {
+    console.error("[server-action] saveActionPlan failed", err);
+    return { error: "Não foi possível salvar o plano. Tente novamente." };
+  }
+  redirect(redirectTo);
 }
 
 export async function concludeActionPlan(actionPlanId: string): Promise<void> {

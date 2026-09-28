@@ -45,15 +45,15 @@ export default async function FCAPage({
 
   return (
     <div className="mx-auto flex max-w-[760px] flex-col gap-5">
-      <div className="flex items-center justify-between gap-3">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <Link
             href={backHref}
             className="mb-1 inline-flex items-center gap-1 text-[12px] font-medium text-[var(--color-brand-700)] hover:underline"
           >
             <ArrowLeft className="h-3.5 w-3.5" /> {backLabel}
           </Link>
-          <h1 className="font-display text-[20px] font-bold text-[var(--color-ink-900)]">
+          <h1 className="font-display text-[20px] font-bold text-[var(--color-ink-900)] break-words">
             FCA — {measurement.kpi.name}
           </h1>
         </div>
