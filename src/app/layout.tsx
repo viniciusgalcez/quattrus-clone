@@ -22,6 +22,8 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Capri Gestiona — Gestão de Metas",
   description: "Plataforma de gestão estratégica e performance.",
+  themeColor: "#272b2a",
+  robots: { index: false, follow: false },
 };
 
 import { Toaster } from "sonner";
