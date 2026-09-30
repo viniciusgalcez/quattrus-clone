@@ -18,8 +18,12 @@ function kpi(overrides: Record<string, unknown>) {
     direction: "MORE",
     yellowRange: 10,
     redRange: 20,
+    priority: overrides.priority ?? 0,
+    category: overrides.category ?? "KPI",
+    auxiliary: overrides.auxiliary ?? false,
     owner: { id: overrides.ownerId ?? "owner-1", name: overrides.ownerName ?? "Owner" },
     measurements: overrides.measurements ?? [],
+    thresholdValidities: overrides.thresholdValidities ?? [],
     ...overrides,
   });
 }
@@ -89,5 +93,15 @@ describe("buildFarolTree", () => {
     const [node] = await buildFarolTree(["user-9"], 2026);
     expect(node.ownerId).toBe("user-9");
     expect(node.ownerName).toBe("Julia");
+  });
+
+  it("exposes priority, category and auxiliary for grid columns / tabs", async () => {
+    findMany.mockResolvedValue([
+      kpi({ id: "a", priority: 3, category: "PMB", auxiliary: true }),
+    ]);
+    const [node] = await buildFarolTree(["owner-1"], 2026);
+    expect(node.priority).toBe(3);
+    expect(node.category).toBe("PMB");
+    expect(node.auxiliary).toBe(true);
   });
 });

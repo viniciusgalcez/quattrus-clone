@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, ChevronDown, LineChart } from "lucide-react";
 import { STATUS_LABEL, type KpiStatus } from "@/lib/kpi";
@@ -10,6 +10,7 @@ import { ownerInitials, ownerColor } from "@/lib/avatar";
 import { KpiChartModal } from "@/components/KpiChartModal";
 import { MeasurementQuickEditModal } from "@/components/MeasurementQuickEditModal";
 import { KpiRowMenu } from "@/components/KpiRowMenu";
+import { KpiCellMenu } from "@/components/KpiCellMenu";
 
 const nf = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
 
@@ -26,11 +27,16 @@ const DOT_GLYPH: Partial<Record<KpiStatus, string>> = {
   CRITICO: "!",
 };
 
+type CellTarget = {
+  node: FarolTreeNode;
+  cell: FarolTreeNode["cells"][number];
+  rect: DOMRect;
+};
+
 /**
- * The "Meus itens de controle" grid: one row per indicator, nested under its
- * parent, twelve month dots, and a colored Meta box — with an owner avatar so
- * a manager can tell at a glance whose item they're looking at inside their
- * own rollup.
+ * The "Meus itens de controle" grid: P/C columns, nested indicators, twelve
+ * month dots with a per-cell menu (Editar / Pareto / Barras), and a Valor
+ * badge (realizado grande + meta pequena).
  */
 export function FarolTreeGrid({
   rows,
@@ -51,6 +57,9 @@ export function FarolTreeGrid({
   const [editCell, setEditCell] = useState<{ node: FarolTreeNode; cell: FarolTreeNode["cells"][number] } | null>(
     null
   );
+  const [cellMenu, setCellMenu] = useState<CellTarget | null>(null);
+
+  const closeCellMenu = useCallback(() => setCellMenu(null), []);
 
   function toggle(id: string) {
     setCollapsed((prev) => {
@@ -61,18 +70,40 @@ export function FarolTreeGrid({
     });
   }
 
+  function openCellMenu(
+    event: React.MouseEvent<HTMLButtonElement>,
+    node: FarolTreeNode,
+    cell: FarolTreeNode["cells"][number]
+  ) {
+    event.preventDefault();
+    setCellMenu({ node, cell, rect: event.currentTarget.getBoundingClientRect() });
+  }
+
   function renderNode(node: FarolTreeNode, depth: number): React.ReactNode[] {
     const visibleCells = visibleMonthIndexes.map((index) => node.cells[index]).filter(Boolean);
-    const counts = summarizeRow({ kpiId: node.kpiId, name: node.name, metricUnit: node.metricUnit, ownerName: node.ownerName, cells: node.cells });
+    const counts = summarizeRow({
+      kpiId: node.kpiId,
+      name: node.name,
+      metricUnit: node.metricUnit,
+      ownerName: node.ownerName,
+      cells: node.cells,
+    });
     const measured = 12 - counts.SEM_DADO;
     const onTarget = counts.VERDE;
     const latest = [...node.cells].reverse().find((c) => c.status !== "SEM_DADO");
     const latestOnTarget = latest?.status === "VERDE";
     const hasChildren = node.children.length > 0;
     const isCollapsed = collapsed.has(node.kpiId);
+    const canEditRow = editableKpiIds.includes(node.kpiId);
 
     const row = (
       <tr key={node.kpiId}>
+        <td className="!px-1.5 text-center font-mono-num text-[11px] text-[var(--color-ink-500)]">
+          {node.priority}
+        </td>
+        <td className="!px-1.5 text-center text-[10.5px] font-semibold uppercase tracking-wide text-[var(--color-ink-500)]">
+          {node.category}
+        </td>
         <th scope="row" className="min-w-[240px]">
           <div className="flex items-center gap-1.5" style={{ paddingLeft: depth * 18 }}>
             {hasChildren ? (
@@ -106,6 +137,7 @@ export function FarolTreeGrid({
               </Link>
               <div className="truncate text-[10.5px] text-[var(--color-ink-400)]">
                 {node.metricUnit} · {node.ownerName}
+                {node.auxiliary ? " · auxiliar" : ""}
               </div>
             </div>
 
@@ -127,29 +159,22 @@ export function FarolTreeGrid({
             hasData ? `, realizado ${nf.format(cell.actual ?? 0)} de ${nf.format(cell.goal ?? 0)}` : ""
           }`;
           const content = <span className={DOT_CLASS[cell.status]}>{DOT_GLYPH[cell.status] ?? ""}</span>;
-          const isEditableMonth = cell.period === currentPeriod && editableKpiIds.includes(node.kpiId);
+          const isCurrentMonth = cell.period === currentPeriod;
+          const canOpenMenu = isCurrentMonth || Boolean(cell.measurementId) || canEditRow;
 
           return (
             <td key={cell.period} className="!px-1.5 text-center">
-              {isEditableMonth ? (
+              {canOpenMenu ? (
                 <button
                   type="button"
-                  onClick={() => setEditCell({ node, cell })}
-                  aria-label={`Lançar medição — ${label}`}
-                  title={`Lançar medição — ${label}`}
+                  onClick={(event) => openCellMenu(event, node, cell)}
+                  aria-label={`Ações — ${label}`}
+                  title={label}
+                  aria-haspopup="menu"
                   className="inline-flex rounded-full border-0 bg-transparent p-0 leading-none ring-offset-1 hover:ring-2 hover:ring-[var(--color-brand-500)] focus-visible:outline-2"
                 >
                   {content}
                 </button>
-              ) : cell.measurementId ? (
-                <Link
-                  href={`/fca/${cell.measurementId}`}
-                  aria-label={label}
-                  title={label}
-                  className="inline-block rounded-full focus-visible:outline-2"
-                >
-                  {content}
-                </Link>
               ) : (
                 <span aria-label={label} title={label} className="inline-block">
                   {content}
@@ -171,9 +196,9 @@ export function FarolTreeGrid({
             <div
               className="font-mono-num inline-flex min-w-[92px] flex-col items-center rounded-lg px-2 py-1 text-[11px] font-bold text-white"
               style={{ backgroundColor: latestOnTarget ? "var(--color-green-600)" : "var(--color-red-600)" }}
-              title={`Realizado ${nf.format(latest.actual ?? 0)} / Meta ${nf.format(latest.goal ?? 0)} (${latest.monthLabel})`}
+              title={`Valor: realizado ${nf.format(latest.actual ?? 0)} / meta ${nf.format(latest.goal ?? 0)} (${latest.monthLabel})`}
             >
-              <span>{nf.format(latest.actual ?? 0)}</span>
+              <span className="text-[13px] leading-tight">{nf.format(latest.actual ?? 0)}</span>
               <span className="text-[9.5px] font-medium opacity-80">{nf.format(latest.goal ?? 0)}</span>
             </div>
           ) : (
@@ -182,7 +207,7 @@ export function FarolTreeGrid({
         </td>
 
         <td className="text-center">
-          <KpiRowMenu kpiId={node.kpiId} canEdit={editableKpiIds.includes(node.kpiId)} />
+          <KpiRowMenu kpiId={node.kpiId} canEdit={canEditRow} />
         </td>
       </tr>
     );
@@ -190,6 +215,11 @@ export function FarolTreeGrid({
     if (isCollapsed || !hasChildren) return [row];
     return [row, ...node.children.flatMap((child) => renderNode(child, depth + 1))];
   }
+
+  const menuCanEdit =
+    cellMenu !== null &&
+    cellMenu.cell.period === currentPeriod &&
+    editableKpiIds.includes(cellMenu.node.kpiId);
 
   return (
     <>
@@ -200,8 +230,14 @@ export function FarolTreeGrid({
           </caption>
           <thead>
             <tr>
+              <th scope="col" className="!px-1.5 text-center" title="Prioridade">
+                P
+              </th>
+              <th scope="col" className="!px-1.5 text-center" title="Categoria">
+                C
+              </th>
               <th scope="col" className="min-w-[240px]">
-                Indicador
+                Item
               </th>
               {visibleMonthIndexes.map((index) => MONTH_LABELS[index]).map((label) => (
                 <th key={label} scope="col" className="!px-1.5 text-center">
@@ -212,7 +248,7 @@ export function FarolTreeGrid({
                 Ano
               </th>
               <th scope="col" className="text-center">
-                Meta
+                Valor
               </th>
               <th scope="col" className="text-center">
                 <span className="sr-only">Ações</span>
@@ -222,6 +258,22 @@ export function FarolTreeGrid({
           <tbody>{rows.flatMap((node) => renderNode(node, 0))}</tbody>
         </table>
       </div>
+
+      <KpiCellMenu
+        open={cellMenu !== null}
+        anchorRect={cellMenu?.rect ?? null}
+        canEdit={menuCanEdit}
+        measurementId={cellMenu?.cell.measurementId ?? null}
+        onClose={closeCellMenu}
+        onEdit={() => {
+          if (!cellMenu || !menuCanEdit) return;
+          setEditCell({ node: cellMenu.node, cell: cellMenu.cell });
+        }}
+        onBars={() => {
+          if (!cellMenu) return;
+          setChartNode(cellMenu.node);
+        }}
+      />
 
       {chartNode && (
         <KpiChartModal
@@ -238,8 +290,13 @@ export function FarolTreeGrid({
           name={editCell.node.name}
           metricUnit={editCell.node.metricUnit}
           monthLabel={editCell.cell.monthLabel}
+          period={editCell.cell.period}
+          year={year}
           goal={editCell.cell.goal}
           actual={editCell.cell.actual}
+          forecast={editCell.cell.forecast}
+          measured={editCell.cell.measured}
+          justification={editCell.cell.justification}
           onClose={() => setEditCell(null)}
         />
       )}

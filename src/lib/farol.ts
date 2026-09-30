@@ -56,6 +56,9 @@ export type FarolCell = {
   monthLabel: string;
   goal: number | null;
   actual: number | null;
+  forecast: number | null;
+  measured: boolean;
+  justification: string | null;
   deviation: number | null;
   status: KpiStatus;
   measurementId: string | null;
@@ -110,6 +113,9 @@ export function buildFarolRows(kpis: FarolKpiInput[], year: number): FarolRow[] 
           monthLabel: MONTH_LABELS[index],
           goal: null,
           actual: null,
+          forecast: null,
+          measured: false,
+          justification: null,
           deviation: null,
           status: "SEM_DADO",
           measurementId: null,
@@ -120,6 +126,9 @@ export function buildFarolRows(kpis: FarolKpiInput[], year: number): FarolRow[] 
         monthLabel: MONTH_LABELS[index],
         goal: m.goal,
         actual: m.actual,
+        forecast: null,
+        measured: m.actual !== null,
+        justification: null,
         deviation: getDeviationPct(m.goal, m.actual, kpi.direction),
         status: getKpiStatus(m.goal, m.actual, kpi.direction, kpi.yellowRange, kpi.redRange),
         measurementId: m.id,

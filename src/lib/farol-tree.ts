@@ -17,6 +17,11 @@ export type FarolTreeNode = {
   metricUnit: string;
   ownerId: string;
   ownerName: string;
+  /** Display order / "P" column (lower = higher priority). */
+  priority: number;
+  /** "C" column — PMB or KPI. */
+  category: "PMB" | "KPI";
+  auxiliary: boolean;
   cells: FarolCell[];
   bandData: BandPoint[];
   children: FarolTreeNode[];
@@ -40,7 +45,15 @@ export async function buildFarolTree(ownerIds: string[], year: number, visibleKp
       owner: { select: { id: true, name: true } },
       measurements: {
         where: { period: { gte: periods[0], lte: periods[11] } },
-        select: { id: true, period: true, goal: true, actual: true },
+        select: {
+          id: true,
+          period: true,
+          goal: true,
+          actual: true,
+          forecast: true,
+          measured: true,
+          justification: true,
+        },
       },
       thresholdValidities: {
         select: { startPeriod: true, endPeriod: true, yellowRange: true, redRange: true },
@@ -62,6 +75,9 @@ export async function buildFarolTree(ownerIds: string[], year: number, visibleKp
           monthLabel: MONTH_LABELS[i],
           goal: null,
           actual: null,
+          forecast: null,
+          measured: false,
+          justification: null,
           deviation: null,
           status: "SEM_DADO",
           measurementId: null,
@@ -72,6 +88,9 @@ export async function buildFarolTree(ownerIds: string[], year: number, visibleKp
         monthLabel: MONTH_LABELS[i],
         goal: m.goal,
         actual: m.actual,
+        forecast: m.forecast,
+        measured: m.measured,
+        justification: m.justification,
         deviation: getDeviationPct(m.goal, m.actual, kpi.direction),
         status: getKpiStatus(m.goal, m.actual, kpi.direction, thresholds.yellowRange, thresholds.redRange),
         measurementId: m.id,
@@ -104,6 +123,9 @@ export async function buildFarolTree(ownerIds: string[], year: number, visibleKp
       metricUnit: kpi.metricUnit,
       ownerId: kpi.owner.id,
       ownerName: kpi.owner.name,
+      priority: kpi.priority,
+      category: kpi.category,
+      auxiliary: kpi.auxiliary,
       cells,
       bandData,
       children: [],
