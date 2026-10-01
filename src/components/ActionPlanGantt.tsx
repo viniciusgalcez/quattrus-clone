@@ -8,6 +8,7 @@ import {
   updateActionPlanStep,
   updateActionPlanStepDates,
 } from "@/lib/actions";
+import { asFormAction } from "@/lib/action-result";
 import { SubmitButton } from "@/components/SubmitButton";
 import {
   datesFromMonthSpan,
@@ -162,7 +163,7 @@ export function ActionPlanGantt({
       {editable && (
         <form
           noValidate
-          action={createActionPlanStep}
+          action={asFormAction(createActionPlanStep)}
           className="grid grid-cols-1 gap-2 border-b border-[var(--color-border)] p-3 sm:grid-cols-6"
         >
           <input type="hidden" name="actionPlanId" value={actionPlanId} />
@@ -315,7 +316,7 @@ export function ActionPlanGantt({
                     </td>
                     <td className="align-top text-right">
                       {editable ? (
-                        <form noValidate action={async (fd: FormData) => { await update(fd); }}>
+                        <form noValidate action={asFormAction(async (fd: FormData) => update(fd))}>
                           <select name="status" defaultValue={step.status} className="input-field min-w-[120px] text-[11px]">
                             <option value="ABERTO">Aberta</option>
                             <option value="CONCLUIDO">Concluída</option>
@@ -338,7 +339,7 @@ export function ActionPlanGantt({
                     </td>
                     {editable && (
                       <td className="align-top text-right">
-                        <form noValidate action={deleteActionPlanStep.bind(null, step.id)}>
+                        <form noValidate action={asFormAction(deleteActionPlanStep.bind(null, step.id))}>
                           <button
                             type="submit"
                             className="btn btn-ghost px-2 text-[var(--color-red-600)]"

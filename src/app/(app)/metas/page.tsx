@@ -12,6 +12,7 @@ import {
   STATUS_RAIL_CLASS,
 } from "@/lib/kpi";
 import { upsertMeasurementSafe } from "@/lib/actions";
+import { asFormAction } from "@/lib/action-result";
 import { findPeriodLock } from "@/lib/period-locks";
 import { SubmitButton } from "@/components/SubmitButton";
 import { EmptyState } from "@/components/EmptyState";
@@ -57,7 +58,12 @@ export default async function MetasPage() {
           measurement.actual,
           kpi.direction,
           kpi.yellowRange,
-          kpi.redRange
+          kpi.redRange,
+          {
+            thresholdMode: kpi.thresholdMode,
+            lowerLimit: kpi.lowerLimit,
+            upperLimit: kpi.upperLimit,
+          }
         )
       : "SEM_DADO";
     return { ...kpi, status, measurement };
@@ -274,7 +280,7 @@ export default async function MetasPage() {
                             Abrir FCA
                           </Link>
                         )}
-                        <form noValidate id={formId} action={upsertMeasurementSafe}>
+                        <form noValidate id={formId} action={asFormAction(upsertMeasurementSafe)}>
                           <input type="hidden" name="kpiId" value={kpi.id} />
                           <SubmitButton
                             className="btn text-[11px]"

@@ -1,5 +1,5 @@
 import type { Direction, GoalApprovalStatus } from "@prisma/client";
-import { getKpiStatus, type KpiStatus } from "@/lib/kpi";
+import { getKpiStatus, type KpiStatus, type ThresholdMode } from "@/lib/kpi";
 
 /**
  * The pure half of writing a measurement: given the numbers and the KPI's
@@ -15,10 +15,27 @@ export function decideMeasurementWrite(args: {
   yellowRange: number;
   redRange: number;
   hasExistingActionPlan: boolean;
+  thresholdMode?: ThresholdMode | null;
+  lowerLimit?: number | null;
+  upperLimit?: number | null;
 }): { trafficLight: KpiStatus; shouldOpenActionPlan: boolean } {
-  const { goal, actual, direction, yellowRange, redRange, hasExistingActionPlan } = args;
+  const {
+    goal,
+    actual,
+    direction,
+    yellowRange,
+    redRange,
+    hasExistingActionPlan,
+    thresholdMode,
+    lowerLimit,
+    upperLimit,
+  } = args;
 
-  const trafficLight = getKpiStatus(goal, actual, direction, yellowRange, redRange);
+  const trafficLight = getKpiStatus(goal, actual, direction, yellowRange, redRange, {
+    thresholdMode,
+    lowerLimit,
+    upperLimit,
+  });
 
   // Every off-target tier opens a plan, CRITICO included — leaving the worst
   // tier out meant a mildly-off KPI got an FCA while a catastrophic one did not.

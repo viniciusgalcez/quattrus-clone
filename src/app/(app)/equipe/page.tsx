@@ -75,7 +75,11 @@ export default async function EquipePage() {
                     {user.kpis.map((kpi) => {
                       const m = kpi.measurements[0];
                       const status = m
-                        ? getKpiStatus(m.goal, m.actual, kpi.direction, kpi.yellowRange, kpi.redRange)
+                        ? getKpiStatus(m.goal, m.actual, kpi.direction, kpi.yellowRange, kpi.redRange, {
+                            thresholdMode: kpi.thresholdMode,
+                            lowerLimit: kpi.lowerLimit,
+                            upperLimit: kpi.upperLimit,
+                          })
                         : "SEM_DADO";
                       return (
                         // Name + label, so a row of chips says which indicator is

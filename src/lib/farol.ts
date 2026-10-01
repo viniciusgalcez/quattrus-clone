@@ -80,6 +80,9 @@ export type FarolKpiInput = {
   direction: Direction;
   yellowRange: number;
   redRange: number;
+  thresholdMode?: "PERCENT" | "ABSOLUTE" | null;
+  lowerLimit?: number | null;
+  upperLimit?: number | null;
   owner?: { name: string } | null;
   measurements: {
     id: string;
@@ -130,7 +133,11 @@ export function buildFarolRows(kpis: FarolKpiInput[], year: number): FarolRow[] 
         measured: m.actual !== null,
         justification: null,
         deviation: getDeviationPct(m.goal, m.actual, kpi.direction),
-        status: getKpiStatus(m.goal, m.actual, kpi.direction, kpi.yellowRange, kpi.redRange),
+        status: getKpiStatus(m.goal, m.actual, kpi.direction, kpi.yellowRange, kpi.redRange, {
+          thresholdMode: kpi.thresholdMode,
+          lowerLimit: kpi.lowerLimit,
+          upperLimit: kpi.upperLimit,
+        }),
         measurementId: m.id,
       };
     });

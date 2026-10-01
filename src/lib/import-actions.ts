@@ -407,6 +407,9 @@ async function importMeasurementRow(row: MeasurementImportRow, user: SessionUser
     yellowRange: kpi.yellowRange,
     redRange: kpi.redRange,
     hasExistingActionPlan,
+    thresholdMode: kpi.thresholdMode,
+    lowerLimit: kpi.lowerLimit,
+    upperLimit: kpi.upperLimit,
   });
 
   const goalApprovalStatus = decideGoalApproval({

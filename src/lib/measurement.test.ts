@@ -38,6 +38,18 @@ describe("decideMeasurementWrite", () => {
     });
   });
 
+  it("honors ABSOLUTE threshold mode when deciding FCA", () => {
+    expect(
+      decideMeasurementWrite({
+        ...base,
+        actual: 95,
+        thresholdMode: "ABSOLUTE",
+        lowerLimit: 90,
+        upperLimit: 110,
+      })
+    ).toEqual({ trafficLight: "VERDE", shouldOpenActionPlan: false });
+  });
+
   it("reports the tier without asking to close an existing plan when it recovers", () => {
     // A goal revision that erased an open FCA would be a laundering mechanism,
     // so recovery never returns a "close it" signal — only the new tier.

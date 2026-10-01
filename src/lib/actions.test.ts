@@ -299,7 +299,11 @@ describe("upsertMeasurement", () => {
 
       await upsertMeasurement(form({ kpiId: "kpi-1", goal: "100", actual: "120" }));
 
-      expect(getKpiStatusMock).toHaveBeenCalledWith(100, 120, "LESS", 5, 15);
+      expect(getKpiStatusMock).toHaveBeenCalledWith(100, 120, "LESS", 5, 15, {
+        thresholdMode: undefined,
+        lowerLimit: undefined,
+        upperLimit: undefined,
+      });
     });
 
     it("persists the computed status and the reporter on both upsert branches", async () => {
@@ -341,7 +345,11 @@ describe("upsertMeasurement", () => {
     it("treats an empty actual as null rather than zero", async () => {
       getKpiStatusMock.mockReturnValue("SEM_DADO");
       await upsertMeasurement(form({ kpiId: "kpi-1", goal: "100", actual: "" }));
-      expect(getKpiStatusMock).toHaveBeenCalledWith(100, null, "MORE", 10, 20);
+      expect(getKpiStatusMock).toHaveBeenCalledWith(100, null, "MORE", 10, 20, {
+        thresholdMode: undefined,
+        lowerLimit: undefined,
+        upperLimit: undefined,
+      });
     });
   });
 
@@ -526,8 +534,15 @@ describe("saveUserPreferences", () => {
     requireUserMock.mockResolvedValue(stub({ id: "user-1", role: "COLABORADOR" }));
   });
 
+  it("returns a session-expired message when the user is not authenticated", async () => {
+    requireUserMock.mockRejectedValue(new Error("Não autenticado."));
+    const result = await saveUserPreferences(form({ density: "compact" }));
+    expect(result).toEqual({ ok: false, error: "Sua sessão expirou. Faça login novamente." });
+    expect(userPreferenceUpsert).not.toHaveBeenCalled();
+  });
+
   it("persists every preference submitted by the signed-in user", async () => {
-    await saveUserPreferences(
+    const result = await saveUserPreferences(
       form({
         density: "compact",
         theme: "dark",
@@ -541,6 +556,7 @@ describe("saveUserPreferences", () => {
       })
     );
 
+    expect(result).toEqual({ ok: true });
     expect(userPreferenceUpsert).toHaveBeenCalledWith({
       where: { userId: "user-1" },
       create: {
@@ -570,8 +586,9 @@ describe("saveUserPreferences", () => {
   });
 
   it("uses safe defaults for invalid values and an unchecked notification option", async () => {
-    await saveUserPreferences(form({ density: "invalid", theme: "invalid", startPage: "/admin" }));
+    const result = await saveUserPreferences(form({ density: "invalid", theme: "invalid", startPage: "/admin" }));
 
+    expect(result).toEqual({ ok: true });
     expect(userPreferenceUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         create: expect.objectContaining({

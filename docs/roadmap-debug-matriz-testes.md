@@ -1,7 +1,8 @@
 # Roadmap de debug + matriz de testes (Gestiona)
 
 **Objetivo:** caçar erros e bugs de forma sistemática depois da paridade M3/M4.  
-**Criado:** 2026-10-01 · aponta a partir de [roadmap-paridade-quattrus.md](./roadmap-paridade-quattrus.md).
+**Criado:** 2026-10-01 · aponta a partir de [roadmap-paridade-quattrus.md](./roadmap-paridade-quattrus.md).  
+**Regras de negócio (cálculo/autorização):** [roadmap-validacao-regras-negocio.md](./roadmap-validacao-regras-negocio.md).
 
 ## Como usar
 
@@ -58,11 +59,19 @@ Severidade: **S1** bloqueia operação · **S2** distorce farol/cálculo · **S3
 | E2E smoke | login→farol→medição→aprov→PDF | S1 | Conta de teste | Fluxo completo | Manual (checklist) | — | |
 | Deploy | Hobby authorize | S2 | `vercel --prod` bloqueia | Commit authorize + redeploy | Manual | — | |
 
+## Log de execuções
+
+| Data | Relatório | Auto | Prod público | Manual auth | OK / BUG / BLOQ |
+| --- | --- | --- | --- | --- | --- |
+| 2026-10-01 | [mudancas/2026-10-01-matriz-debug-execucao.md](./mudancas/2026-10-01-matriz-debug-execucao.md) | 399/399 + typecheck OK | health + redirects OK; prod READY `7cd6aec` | smoke `teste` + Rodada 2 (sessão/faixa/import/mobile/Hobby) | 28 / 0 / 0 |
+
+Coluna **Resultado** da matriz acima fica em branco para reuso; preencher no relatório da rodada.
+
 ## Achados (preencher durante a caçada)
 
 | Data | Área | Caso | Sev | Esperado | Atual | Owner | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| | | | | | | | |
+| 2026-10-01 | Auto | `actions.test` getKpiStatus 6º arg | S4 | Asserts alinhados à faixa absoluta | Corrigido nesta rodada | — | Fechado |
 
 ## Smoke E2E manual (Fase 9)
 

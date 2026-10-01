@@ -18,7 +18,17 @@ export async function recalculateParentMeasurement(parentId: string, period: str
           denominatorKpi: { include: { measurements: true } },
         },
       },
-      thresholdValidities: { select: { startPeriod: true, endPeriod: true, yellowRange: true, redRange: true } },
+      thresholdValidities: {
+        select: {
+          startPeriod: true,
+          endPeriod: true,
+          yellowRange: true,
+          redRange: true,
+          thresholdMode: true,
+          lowerLimit: true,
+          upperLimit: true,
+        },
+      },
     },
   });
 
@@ -124,7 +134,12 @@ export async function recalculateParentMeasurement(parentId: string, period: str
       newActual,
       parent.direction,
       thresholds.yellowRange,
-      thresholds.redRange
+      thresholds.redRange,
+      {
+        thresholdMode: thresholds.thresholdMode,
+        lowerLimit: thresholds.lowerLimit,
+        upperLimit: thresholds.upperLimit,
+      }
     );
 
     await prisma.measurement.upsert({

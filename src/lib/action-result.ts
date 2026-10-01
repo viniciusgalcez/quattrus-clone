@@ -17,3 +17,12 @@ export function handleActionError(error: unknown): ActionResult {
   console.error("[server-action] unexpected failure", error);
   return { ok: false, error: "Não foi possível completar a ação. Tente novamente." };
 }
+
+/** Next.js `<form action>` typing expects `Promise<void>` — wrap ActionResult actions. */
+export function asFormAction(
+  action: (formData: FormData) => Promise<ActionResult>
+): (formData: FormData) => Promise<void> {
+  return async (formData) => {
+    await action(formData);
+  };
+}

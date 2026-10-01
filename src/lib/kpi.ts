@@ -226,6 +226,25 @@ export function getKpiStatusFromThresholds(
   });
 }
 
+/**
+ * Single entry for UI + writes: resolve vigência for `period` then classify.
+ * Prefer this over bare `getKpiStatus(...)` so ABSOLUTE / vigência stay consistent.
+ */
+export type KpiStatusSource = ThresholdFallback & {
+  direction: Direction;
+  thresholdValidities?: ThresholdWindow[];
+};
+
+export function statusForKpiPeriod(
+  kpi: KpiStatusSource,
+  period: string,
+  goal: number,
+  actual: number | null | undefined
+): KpiStatus {
+  const thresholds = thresholdsForPeriod(period, kpi, kpi.thresholdValidities);
+  return getKpiStatusFromThresholds(goal, actual, kpi.direction, thresholds);
+}
+
 export const STATUS_COLOR: Record<KpiStatus, string> = {
   VERDE: "#157f4a",
   AMARELO: "#b56a05",

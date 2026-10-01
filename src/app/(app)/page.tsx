@@ -73,7 +73,11 @@ export default async function Home({
   for (const kpi of kpis) {
     const current = kpi.measurements.find((m) => m.period === period) ?? null;
     const status = current
-      ? getKpiStatus(current.goal, current.actual, kpi.direction, kpi.yellowRange, kpi.redRange)
+      ? getKpiStatus(current.goal, current.actual, kpi.direction, kpi.yellowRange, kpi.redRange, {
+          thresholdMode: kpi.thresholdMode,
+          lowerLimit: kpi.lowerLimit,
+          upperLimit: kpi.upperLimit,
+        })
       : "SEM_DADO";
 
     if (status === "VERDE") green++;
@@ -91,7 +95,12 @@ export default async function Home({
   const fcaAbertos = await prisma.actionPlan.findMany({
     relationLoadStrategy: "join",
     where: { kpi: { ownerId: { in: fcaOwnerIds } }, status: "ABERTO" },
-    include: { measurement: true, kpi: { include: { owner: { select: { id: true, name: true } } } } },
+    include: {
+      measurement: true,
+      kpi: {
+        include: { owner: { select: { id: true, name: true } } },
+      },
+    },
     orderBy: { createdAt: "desc" },
   });
   const fcaPendentes = fcaAbertos.length;
@@ -136,7 +145,12 @@ export default async function Home({
       plan.measurement.actual,
       plan.kpi.direction,
       plan.kpi.yellowRange,
-      plan.kpi.redRange
+      plan.kpi.redRange,
+      {
+        thresholdMode: plan.kpi.thresholdMode,
+        lowerLimit: plan.kpi.lowerLimit,
+        upperLimit: plan.kpi.upperLimit,
+      }
     ),
   }));
   // Worst first: deviation is negative for a miss, so ascending puts the

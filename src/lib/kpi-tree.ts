@@ -50,7 +50,11 @@ export async function buildKpiTree(ownerIds: string[], period: string): Promise<
       // rewrite past measurements, so the stored value goes stale and this
       // view would disagree with the dashboard for the same KPI and period.
       status: m
-        ? getKpiStatus(m.goal, m.actual, kpi.direction, kpi.yellowRange, kpi.redRange)
+        ? getKpiStatus(m.goal, m.actual, kpi.direction, kpi.yellowRange, kpi.redRange, {
+            thresholdMode: kpi.thresholdMode,
+            lowerLimit: kpi.lowerLimit,
+            upperLimit: kpi.upperLimit,
+          })
         : "SEM_DADO",
       children: [],
     });

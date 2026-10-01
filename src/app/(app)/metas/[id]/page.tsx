@@ -4,7 +4,7 @@ import { ArrowLeft, CalendarClock, Pencil } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { assertPageModule } from "@/lib/module-access";
-import { currentPeriod, getKpiStatus, periodLabel, STATUS_BADGE_CLASS, STATUS_LABEL, STATUS_RAIL_CLASS } from "@/lib/kpi";
+import { currentPeriod, periodLabel, STATUS_BADGE_CLASS, STATUS_LABEL, STATUS_RAIL_CLASS, statusForKpiPeriod } from "@/lib/kpi";
 import { canView } from "@/lib/hierarchy";
 import { KpiBandChart } from "@/components/KpiBandChart";
 import { buildBandPoint } from "@/lib/band-chart";
@@ -77,6 +77,10 @@ export default async function KpiDetailPage({
       goal: m.goal,
       actual: m.actual,
       yellowRange: kpi.yellowRange,
+      absoluteLimits:
+        kpi.thresholdMode === "ABSOLUTE" && kpi.lowerLimit != null && kpi.upperLimit != null
+          ? { lower: kpi.lowerLimit, upper: kpi.upperLimit }
+          : null,
     })
   );
 
@@ -168,7 +172,7 @@ export default async function KpiDetailPage({
                 </tr>
               )}
               {[...kpi.measurements].reverse().map((m) => {
-                const status = getKpiStatus(m.goal, m.actual, kpi.direction, kpi.yellowRange, kpi.redRange);
+                const status = statusForKpiPeriod(kpi, m.period, m.goal, m.actual);
                 return (
                   <tr key={m.id}>
                     <th scope="row" data-label="Período" className={STATUS_RAIL_CLASS[status]}>

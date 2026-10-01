@@ -77,7 +77,11 @@ export default async function DepartamentosPage() {
             // Recomputed from current thresholds, not the stored column, so
             // this agrees with the dashboard after a KPI's ranges are edited.
             const status: KpiStatus = m
-              ? getKpiStatus(m.goal, m.actual, kpi.direction, kpi.yellowRange, kpi.redRange)
+              ? getKpiStatus(m.goal, m.actual, kpi.direction, kpi.yellowRange, kpi.redRange, {
+                  thresholdMode: kpi.thresholdMode,
+                  lowerLimit: kpi.lowerLimit,
+                  upperLimit: kpi.upperLimit,
+                })
               : "SEM_DADO";
             counts[status] = (counts[status] ?? 0) + 1;
           }

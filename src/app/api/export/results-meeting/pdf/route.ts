@@ -79,7 +79,12 @@ export async function GET(request: Request) {
       measurement.actual,
       measurement.kpi.direction,
       measurement.kpi.yellowRange,
-      measurement.kpi.redRange
+      measurement.kpi.redRange,
+      {
+        thresholdMode: measurement.kpi.thresholdMode,
+        lowerLimit: measurement.kpi.lowerLimit,
+        upperLimit: measurement.kpi.upperLimit,
+      }
     );
     const deviation = getDeviationPct(measurement.goal, measurement.actual, measurement.kpi.direction);
     return [
@@ -123,7 +128,11 @@ export async function GET(request: Request) {
         width: 500,
         height: 130,
         rgb: renderBarChartRgb(500, 130, measurements.slice(0, 12).map((measurement) => {
-          const status = getKpiStatus(measurement.goal, measurement.actual, measurement.kpi.direction, measurement.kpi.yellowRange, measurement.kpi.redRange);
+          const status = getKpiStatus(measurement.goal, measurement.actual, measurement.kpi.direction, measurement.kpi.yellowRange, measurement.kpi.redRange, {
+            thresholdMode: measurement.kpi.thresholdMode,
+            lowerLimit: measurement.kpi.lowerLimit,
+            upperLimit: measurement.kpi.upperLimit,
+          });
           return { goal: measurement.goal, actual: measurement.actual, color: hexToRgb(STATUS_COLOR[status]) };
         })),
       }

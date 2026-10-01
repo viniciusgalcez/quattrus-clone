@@ -735,14 +735,15 @@ export async function upsertMeasurement(formData: FormData) {
 }
 
 /**
- * Safe void wrapper for use as a direct <form action={fn}>. Catches all errors
- * so they never reach the client as React error #441.
+ * Safe wrapper for use as a direct <form action={fn}>. Returns ActionResult so
+ * the client can show session/lock errors instead of a generic boundary.
  */
-export async function upsertMeasurementSafe(formData: FormData): Promise<void> {
+export async function upsertMeasurementSafe(formData: FormData): Promise<ActionResult> {
   try {
     await upsertMeasurement(formData);
+    return { ok: true };
   } catch (error) {
-    handleActionError(error);
+    return handleActionError(error);
   }
 }
 
@@ -983,7 +984,7 @@ export async function saveActionPlan(
   redirect(redirectTo);
 }
 
-export async function concludeActionPlan(actionPlanId: string): Promise<void> {
+export async function concludeActionPlan(actionPlanId: string): Promise<ActionResult> {
   try {
     const user = await requireUser("tasks");
     await assertActionPlanEditable(actionPlanId, user);
@@ -1000,12 +1001,13 @@ export async function concludeActionPlan(actionPlanId: string): Promise<void> {
     });
     revalidatePath("/metas");
     revalidatePath("/");
+    return { ok: true };
   } catch (error) {
-    handleActionError(error);
+    return handleActionError(error);
   }
 }
 
-export async function reopenActionPlan(actionPlanId: string): Promise<void> {
+export async function reopenActionPlan(actionPlanId: string): Promise<ActionResult> {
   try {
     const user = await requireUser("tasks");
     await assertActionPlanEditable(actionPlanId, user);
@@ -1022,8 +1024,9 @@ export async function reopenActionPlan(actionPlanId: string): Promise<void> {
     });
     revalidatePath("/metas");
     revalidatePath("/");
+    return { ok: true };
   } catch (error) {
-    handleActionError(error);
+    return handleActionError(error);
   }
 }
 
@@ -1078,7 +1081,7 @@ async function notifyOverdueActionPlanStep(input: {
   });
 }
 
-export async function createActionPlanStep(formData: FormData): Promise<void> {
+export async function createActionPlanStep(formData: FormData): Promise<ActionResult> {
   try {
     const user = await requireUser("tasks");
     const parsed = createActionPlanStepSchema.safeParse(Object.fromEntries(formData));
@@ -1114,12 +1117,13 @@ export async function createActionPlanStep(formData: FormData): Promise<void> {
       actorId: user.id,
     });
     await revalidateActionPlanSurfaces(data.actionPlanId);
+    return { ok: true };
   } catch (error) {
-    handleActionError(error);
+    return handleActionError(error);
   }
 }
 
-export async function updateActionPlanStep(stepId: string, formData: FormData): Promise<void> {
+export async function updateActionPlanStep(stepId: string, formData: FormData): Promise<ActionResult> {
   try {
     const user = await requireUser("tasks");
     const step = await prisma.actionPlanStep.findUnique({ where: { id: stepId }, select: { actionPlanId: true } });
@@ -1151,8 +1155,9 @@ export async function updateActionPlanStep(stepId: string, formData: FormData): 
       actorId: user.id,
     });
     await revalidateActionPlanSurfaces(step.actionPlanId);
+    return { ok: true };
   } catch (error) {
-    handleActionError(error);
+    return handleActionError(error);
   }
 }
 
@@ -1209,7 +1214,7 @@ export async function updateActionPlanStepDates(
   }
 }
 
-export async function deleteActionPlanStep(stepId: string): Promise<void> {
+export async function deleteActionPlanStep(stepId: string): Promise<ActionResult> {
   try {
     const user = await requireUser("tasks");
     const step = await prisma.actionPlanStep.findUnique({ where: { id: stepId }, select: { actionPlanId: true } });
@@ -1218,8 +1223,9 @@ export async function deleteActionPlanStep(stepId: string): Promise<void> {
     await prisma.actionPlanStep.delete({ where: { id: stepId } });
     await recordAuditLog({ userId: user.id, action: "DELETE", entity: "ActionPlanStep", entityId: stepId, details: { actionPlanId: step.actionPlanId } });
     await revalidateActionPlanSurfaces(step.actionPlanId);
+    return { ok: true };
   } catch (error) {
-    handleActionError(error);
+    return handleActionError(error);
   }
 }
 
@@ -1256,7 +1262,7 @@ export async function createForecastRequest(formData: FormData): Promise<ActionR
   }
 }
 
-export async function reviewForecast(forecastId: string, formData: FormData): Promise<void> {
+export async function reviewForecast(forecastId: string, formData: FormData): Promise<ActionResult> {
   try {
     const user = await requireUser("approvals");
     const parsed = reviewForecastSchema.safeParse(Object.fromEntries(formData));
@@ -1323,12 +1329,13 @@ export async function reviewForecast(forecastId: string, formData: FormData): Pr
     await notifyUser({ recipientId: forecast.requestedById, type: "FORECAST_REVIEWED", title: `Previsão ${data.status === "APROVADA" ? "aprovada" : "rejeitada"}`, body: `A previsão do período ${forecast.period} foi analisada pelo gestor.`, href: `/metas/${forecast.kpiId}`, relatedKpiId: forecast.kpiId, fromUserId: user.id, originLabel: "Previsões" });
     await recordAuditLog({ userId: user.id, action: "STATUS_CHANGE", entity: "ForecastRequest", entityId: forecastId, details: { status: data.status, reviewNote: data.reviewNote || null } });
     revalidatePath("/aprovacoes/previsoes");
+    return { ok: true };
   } catch (error) {
-    handleActionError(error);
+    return handleActionError(error);
   }
 }
 
-export async function markNotificationRead(notificationId: string): Promise<void> {
+export async function markNotificationRead(notificationId: string): Promise<ActionResult> {
   try {
     const user = await requireUser();
     const result = await prisma.notification.updateMany({
@@ -1345,12 +1352,13 @@ export async function markNotificationRead(notificationId: string): Promise<void
       });
     }
     revalidatePath("/notificacoes");
+    return { ok: true };
   } catch (error) {
-    handleActionError(error);
+    return handleActionError(error);
   }
 }
 
-export async function markAllNotificationsRead(): Promise<void> {
+export async function markAllNotificationsRead(): Promise<ActionResult> {
   try {
     const user = await requireUser();
     const result = await prisma.notification.updateMany({
@@ -1367,12 +1375,13 @@ export async function markAllNotificationsRead(): Promise<void> {
       });
     }
     revalidatePath("/notificacoes");
+    return { ok: true };
   } catch (error) {
-    handleActionError(error);
+    return handleActionError(error);
   }
 }
 
-export async function saveUserPreferences(formData: FormData): Promise<void> {
+export async function saveUserPreferences(formData: FormData): Promise<ActionResult> {
   try {
     const user = await requireUser();
     const density = formData.get("density") === "compact" ? "compact" : "comfortable";
@@ -1390,8 +1399,9 @@ export async function saveUserPreferences(formData: FormData): Promise<void> {
     revalidatePath("/", "layout");
     revalidatePath("/inicio");
     revalidatePath("/preferencias");
+    return { ok: true };
   } catch (error) {
-    handleActionError(error);
+    return handleActionError(error);
   }
 }
 
@@ -1713,7 +1723,7 @@ export async function createStrategicProject(_prevState: FormActionState, formDa
   redirect("/projetos");
 }
 
-export async function updateStrategicProjectStatus(projectId: string, formData: FormData): Promise<void> {
+export async function updateStrategicProjectStatus(projectId: string, formData: FormData): Promise<ActionResult> {
   try {
     const user = await requireUser("tasks");
     const project = await prisma.strategicProject.findUnique({ where: { id: projectId } });
@@ -1724,9 +1734,9 @@ export async function updateStrategicProjectStatus(projectId: string, formData: 
     await prisma.strategicProject.update({ where: { id: projectId }, data: { status: parsed.data.status } });
     await recordAuditLog({ userId: user.id, action: "STATUS_CHANGE", entity: "StrategicProject", entityId: projectId, details: { status: parsed.data.status } });
     revalidatePath("/projetos");
-    return;
+    return { ok: true };
   } catch (error) {
-    handleActionError(error);
+    return handleActionError(error);
   }
 }
 

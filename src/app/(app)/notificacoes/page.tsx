@@ -1,16 +1,17 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Prisma } from "@prisma/client";
-import { Bell, CheckCheck } from "lucide-react";
+import { Bell } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { markAllNotificationsRead, markNotificationRead } from "@/lib/actions";
+import { markNotificationRead } from "@/lib/actions";
 import {
   groupNotificationsForDisplay,
   NOTIFICATION_GROUP_LABEL,
   type NotificationGroup,
 } from "@/lib/notifications";
 import { EmptyState } from "@/components/EmptyState";
+import { MarkAllNotificationsButton } from "@/components/MarkAllNotificationsButton";
 
 const GROUP_ORDER: NotificationGroup[] = ["PENDENCIAS", "ATUALIZACOES"];
 const df = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
@@ -77,14 +78,7 @@ export default async function NotificationsPage({
           <h1 className="page-title mt-1 text-[25px]">Notificações</h1>
           <p className="page-subtitle mt-1">Delegadas, Pendentes, busca e Editar Todas — acompanhe aprovações e prazos do plano.</p>
         </div>
-        {unreadCount > 0 && (
-          <form action={markAllNotificationsRead} noValidate>
-            <button type="submit" className="btn btn-primary">
-              <CheckCheck className="h-4 w-4" />
-              Editar Todas
-            </button>
-          </form>
-        )}
+        {unreadCount > 0 && <MarkAllNotificationsButton />}
       </div>
 
       {delegations.length > 0 && (

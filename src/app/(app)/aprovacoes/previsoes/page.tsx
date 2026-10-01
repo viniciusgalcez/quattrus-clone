@@ -6,6 +6,7 @@ import { assertPageModule } from "@/lib/module-access";
 import { exportableOwnerIds } from "@/lib/hierarchy";
 import { periodLabel } from "@/lib/kpi";
 import { reviewForecast } from "@/lib/actions";
+import { asFormAction } from "@/lib/action-result";
 import { EmptyState } from "@/components/EmptyState";
 import { SubmitButton } from "@/components/SubmitButton";
 
@@ -72,7 +73,7 @@ export default async function ForecastApprovalsPage() {
               </thead>
               <tbody>
                 {forecasts.map((forecast) => {
-                  const action = reviewForecast.bind(null, forecast.id);
+                  const action = asFormAction(reviewForecast.bind(null, forecast.id));
                   const solicitation = [
                     forecast.proposedGoal != null ? `Meta ${forecast.proposedGoal}` : null,
                     forecast.proposedActual != null ? `Realizado ${forecast.proposedActual}` : null,

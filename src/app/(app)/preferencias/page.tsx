@@ -1,13 +1,12 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { saveUserPreferences } from "@/lib/actions";
 import { AvatarUpload } from "@/components/AvatarUpload";
 import { ThemePreference } from "@/components/ThemePreference";
 import { DensityPreference } from "@/components/DensityPreference";
 import { StartPagePreference } from "@/components/StartPagePreference";
-import { PreferencesSaveStatus } from "@/components/PreferencesSaveStatus";
-import { BellRing, Check, Home, LayoutPanelTop, SlidersHorizontal, UserRound } from "lucide-react";
+import { PreferencesForm } from "@/components/PreferencesForm";
+import { BellRing, Home, LayoutPanelTop, SlidersHorizontal, UserRound } from "lucide-react";
 
 export default async function PreferencesPage() {
   const session = await auth();
@@ -39,7 +38,7 @@ export default async function PreferencesPage() {
         </div>
       </header>
 
-      <form noValidate action={saveUserPreferences} className="card overflow-hidden">
+      <PreferencesForm>
         <div className="grid lg:grid-cols-[220px_1fr]">
           <aside className="border-b border-[var(--color-border)] bg-[var(--color-surface-muted)] p-5 lg:border-b-0 lg:border-r">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-brand-900)] text-white shadow-sm"><SlidersHorizontal className="h-5 w-5" /></div>
@@ -67,10 +66,9 @@ export default async function PreferencesPage() {
               <div className="flex items-start gap-3"><span className="settings-icon settings-icon-coral"><BellRing className="h-4 w-4" /></span><div><h3 className="text-[14px] font-bold text-[var(--color-ink-900)]">Avisos importantes</h3><p className="mt-0.5 text-[11.5px] text-[var(--color-ink-500)]">Receba lembretes sobre o que precisa de decisão.</p></div></div>
               <label className="flex max-w-md cursor-pointer items-start gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-elevated)] p-3 transition-colors hover:border-[var(--color-brand-500)] hover:bg-[var(--color-brand-50)]"><input type="checkbox" name="emailNotifications" defaultChecked={preference?.emailNotifications ?? true} className="mt-0.5 h-4 w-4 accent-[var(--color-brand-600)]" /><span><span className="block text-[12.5px] font-semibold text-[var(--color-ink-900)]">Receber notificações de aprovações e pendências</span><span className="mt-0.5 block text-[11px] text-[var(--color-ink-500)]">Você poderá revisar tudo na Central de notificações.</span></span></label>
             </div>
-            <div className="flex flex-col gap-3 bg-[var(--color-surface-muted)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6"><PreferencesSaveStatus /><button className="btn btn-primary w-full sm:w-auto" type="submit"><Check className="h-4 w-4" /> Salvar preferências</button></div>
           </div>
         </div>
-      </form>
+      </PreferencesForm>
     </section>
   );
 }

@@ -57,7 +57,7 @@ describe("recalculateParentMeasurement", () => {
 
     await recalculateParentMeasurement("parent-1", "2026-08");
 
-    expect(getKpiStatusMock).toHaveBeenCalledWith(30, 20, "MORE", 10, 20);
+    expect(getKpiStatusMock).toHaveBeenCalledWith(30, 20, "MORE", 10, 20, expect.objectContaining({ thresholdMode: undefined }));
     expect(measurementUpsert).toHaveBeenCalledWith({
       where: { kpiId_period: { kpiId: "parent-1", period: "2026-08" } },
       update: { goal: 30, actual: 20, trafficLight: "VERDE" },
@@ -85,7 +85,7 @@ describe("recalculateParentMeasurement", () => {
     await recalculateParentMeasurement("parent-1", "2026-08");
 
     // goals: (10+20+30)/3 = 20, actuals: (5+25)/2 = 15
-    expect(getKpiStatusMock).toHaveBeenCalledWith(20, 15, "MORE", 10, 20); 
+    expect(getKpiStatusMock).toHaveBeenCalledWith(20, 15, "MORE", 10, 20, expect.objectContaining({ thresholdMode: undefined })); 
     expect(measurementUpsert).toHaveBeenCalled();
   });
 
@@ -109,7 +109,7 @@ describe("recalculateParentMeasurement", () => {
 
     // goal: (10*2 + 20*3) / 5 = 80 / 5 = 16
     // actual: (5*2 + 10*3) / 5 = 40 / 5 = 8
-    expect(getKpiStatusMock).toHaveBeenCalledWith(16, 8, "MORE", 10, 20);
+    expect(getKpiStatusMock).toHaveBeenCalledWith(16, 8, "MORE", 10, 20, expect.objectContaining({ thresholdMode: undefined }));
     expect(measurementUpsert).toHaveBeenCalled();
   });
 
@@ -137,7 +137,7 @@ describe("recalculateParentMeasurement", () => {
     await recalculateParentMeasurement("ratio-1", "2026-08");
 
     // goal: 100 / average(10,30) = 5; actual: 80 / average(20,40) = 2.67
-    expect(getKpiStatusMock).toHaveBeenCalledWith(5, 2.67, "MORE", 10, 20);
+    expect(getKpiStatusMock).toHaveBeenCalledWith(5, 2.67, "MORE", 10, 20, expect.objectContaining({ thresholdMode: undefined }));
   });
 
   it("recursively calls itself if parentId is present", async () => {

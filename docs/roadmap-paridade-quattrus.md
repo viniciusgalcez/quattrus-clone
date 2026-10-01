@@ -194,4 +194,8 @@ Solicitação / Status; notificações Delegadas · Pendentes · busca · Editar
 agenda, preferências); import com erros por linha + fila ≥40; farol/band chart
 consistente (meta 0); smoke + [matriz de debug](./roadmap-debug-matriz-testes.md).
 
+**Próximo (negócio):** validar se as regras estão corretas — ver
+[roadmap-validacao-regras-negocio.md](./roadmap-validacao-regras-negocio.md)
+(farol, faixas, fórmulas, lock, escopo, aprovações, FCA/import).
+
 Produção: https://quattrus-clone.vercel.app · Supabase `quattrus-clone`.
