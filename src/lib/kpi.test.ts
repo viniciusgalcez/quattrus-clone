@@ -175,9 +175,71 @@ describe("KPI Business Logic", () => {
         { startPeriod: "2026-01", endPeriod: "2026-06", yellowRange: 10, redRange: 20 },
         { startPeriod: "2026-07", endPeriod: null, yellowRange: 3, redRange: 8 },
       ];
-      expect(thresholdsForPeriod("2026-03", fallback, windows)).toEqual({ yellowRange: 10, redRange: 20 });
-      expect(thresholdsForPeriod("2026-09", fallback, windows)).toEqual({ yellowRange: 3, redRange: 8 });
-      expect(thresholdsForPeriod("2025-12", fallback, windows)).toEqual(fallback);
+      expect(thresholdsForPeriod("2026-03", fallback, windows)).toMatchObject({ yellowRange: 10, redRange: 20 });
+      expect(thresholdsForPeriod("2026-09", fallback, windows)).toMatchObject({ yellowRange: 3, redRange: 8 });
+      expect(thresholdsForPeriod("2025-12", fallback, windows)).toMatchObject(fallback);
+    });
+
+    it("keeps August farol on the prior window when September starts a new absolute vigência", () => {
+      const fallback = {
+        yellowRange: 5,
+        redRange: 15,
+        thresholdMode: "PERCENT" as const,
+        lowerLimit: null,
+        upperLimit: null,
+      };
+      const windows = [
+        {
+          startPeriod: "2026-01",
+          endPeriod: null,
+          yellowRange: 10,
+          redRange: 20,
+          thresholdMode: "PERCENT" as const,
+          lowerLimit: null,
+          upperLimit: null,
+        },
+        {
+          startPeriod: "2026-09",
+          endPeriod: null,
+          yellowRange: 5,
+          redRange: 10,
+          thresholdMode: "ABSOLUTE" as const,
+          lowerLimit: 80,
+          upperLimit: 120,
+        },
+      ];
+      const ago = thresholdsForPeriod("2026-08", fallback, windows);
+      const set = thresholdsForPeriod("2026-09", fallback, windows);
+      expect(ago.thresholdMode).toBe("PERCENT");
+      expect(ago.yellowRange).toBe(10);
+      expect(set.thresholdMode).toBe("ABSOLUTE");
+      expect(set.lowerLimit).toBe(80);
+      // Same actual/goal: August stays percent-tier AMARELO; September absolute is VERDE.
+      expect(getKpiStatus(100, 95, "MORE", ago.yellowRange, ago.redRange, ago)).toBe("AMARELO");
+      expect(getKpiStatus(100, 95, "MORE", set.yellowRange, set.redRange, set)).toBe("VERDE");
+    });
+  });
+
+  describe("absolute threshold mode", () => {
+    it("returns VERDE when actual is inside lower/upper limits", () => {
+      expect(getKpiStatus(100, 95, "MORE", 10, 20, { thresholdMode: "ABSOLUTE", lowerLimit: 90, upperLimit: 110 })).toBe("VERDE");
+      expect(getKpiStatus(100, 90, "MORE", 10, 20, { thresholdMode: "ABSOLUTE", lowerLimit: 90, upperLimit: 110 })).toBe("VERDE");
+      expect(getKpiStatus(100, 110, "MORE", 10, 20, { thresholdMode: "ABSOLUTE", lowerLimit: 90, upperLimit: 110 })).toBe("VERDE");
+    });
+
+    it("keeps MORE values above the upper limit as VERDE", () => {
+      expect(getKpiStatus(100, 130, "MORE", 10, 20, { thresholdMode: "ABSOLUTE", lowerLimit: 90, upperLimit: 110 })).toBe("VERDE");
+    });
+
+    it("classifies misses outside the band by relative distance", () => {
+      // band width 20; 10 below lower => 50% of width → CRITICO with yellow 10 / red 20
+      expect(getKpiStatus(100, 80, "MORE", 10, 20, { thresholdMode: "ABSOLUTE", lowerLimit: 90, upperLimit: 110 })).toBe("CRITICO");
+      // 2 below lower => 10% of width → AMARELO
+      expect(getKpiStatus(100, 88, "MORE", 10, 20, { thresholdMode: "ABSOLUTE", lowerLimit: 90, upperLimit: 110 })).toBe("AMARELO");
+    });
+
+    it("falls back to percent logic when mode is PERCENT", () => {
+      expect(getKpiStatus(100, 95, "MORE", 10, 20, { thresholdMode: "PERCENT", lowerLimit: 90, upperLimit: 110 })).toBe("AMARELO");
     });
   });
 });

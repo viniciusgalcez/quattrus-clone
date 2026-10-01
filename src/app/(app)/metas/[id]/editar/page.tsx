@@ -80,6 +80,13 @@ export default async function EditarMetaPage({
         kpiId={kpi.id}
         yellowRange={kpi.yellowRange}
         redRange={kpi.redRange}
+        thresholdMode={kpi.thresholdMode}
+        upperLimit={kpi.upperLimit}
+        lowerLimit={kpi.lowerLimit}
+        clientMetaFrom={kpi.clientMetaFrom}
+        clientMetaTo={kpi.clientMetaTo}
+        amplitudeMonth={kpi.amplitudeMonth}
+        amplitudeYear={kpi.amplitudeYear}
         configuration={{
           formula: kpi.formula,
           validities: kpi.validities,

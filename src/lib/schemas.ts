@@ -85,8 +85,15 @@ export const saveKpiConfigurationSchema = z
     measurementValidityEnd: optionalText(7),
     thresholdStart: periodField,
     thresholdEnd: optionalText(7),
+    thresholdMode: z.enum(["PERCENT", "ABSOLUTE"]).default("PERCENT"),
     yellowRange: numberFromForm({ min: 0, max: 100 }),
     redRange: numberFromForm({ min: 0, max: 100 }),
+    upperLimit: nullableNumberFromForm(),
+    lowerLimit: nullableNumberFromForm(),
+    clientMetaFrom: nullableNumberFromForm(),
+    clientMetaTo: nullableNumberFromForm(),
+    amplitudeMonth: z.enum(["FORECAST", "MINIMUM", "FIXED"]).default("FORECAST"),
+    amplitudeYear: z.enum(["FORECAST", "MINIMUM", "FIXED"]).default("FORECAST"),
   })
   .superRefine((data, ctx) => {
     const ranges: Array<["itemValidityStart" | "measurementValidityStart" | "thresholdStart", string | undefined, string | undefined]> = [
@@ -106,6 +113,20 @@ export const saveKpiConfigurationSchema = z
       }
     }
     redRangeInvariant(data, ctx);
+    if (data.thresholdMode === "ABSOLUTE" && data.lowerLimit == null && data.upperLimit == null) {
+      ctx.addIssue({ code: "custom", path: ["lowerLimit"], message: "Informe ao menos um limite (superior ou inferior)." });
+    }
+    if (
+      data.thresholdMode === "ABSOLUTE" &&
+      data.lowerLimit != null &&
+      data.upperLimit != null &&
+      data.lowerLimit > data.upperLimit
+    ) {
+      ctx.addIssue({ code: "custom", path: ["upperLimit"], message: "O limite superior deve ser maior ou igual ao inferior." });
+    }
+    if (data.clientMetaFrom != null && data.clientMetaTo != null && data.clientMetaFrom > data.clientMetaTo) {
+      ctx.addIssue({ code: "custom", path: ["clientMetaTo"], message: "Meta do cliente: Até deve ser ≥ De." });
+    }
     if (data.formulaKind === "QUOTIENT" && (!data.numeratorKpiId || !data.denominatorKpiId)) {
       ctx.addIssue({ code: "custom", path: ["numeratorKpiId"], message: "Informe numerador e denominador." });
     }

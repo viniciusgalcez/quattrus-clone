@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, CalendarRange } from "lucide-react";
+import { ArrowLeft, CalendarRange, Lock } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { currentPeriod, getKpiStatus, periodLabel, STATUS_BADGE_CLASS, STATUS_COLOR, STATUS_LABEL } from "@/lib/kpi";
+import { currentPeriod, getKpiStatusFromThresholds, thresholdsForPeriod } from "@/lib/kpi";
 import { EmptyState } from "@/components/EmptyState";
-import { AnnualMeasurementEditor } from "@/components/AnnualMeasurementEditor";
+import { AnnualMeasurementGrid } from "@/components/AnnualMeasurementGrid";
+import { MedicoesKpiSelector } from "@/components/MedicoesKpiSelector";
 import { assertPageModule } from "@/lib/module-access";
+import { findPeriodLock } from "@/lib/period-locks";
 
 const MONTHS = Array.from({ length: 12 }, (_, index) => index + 1);
 
@@ -17,14 +19,15 @@ function periodFor(year: number, month: number) {
 export default async function AnnualMeasurementsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ano?: string }>;
+  searchParams: Promise<{ ano?: string; kpi?: string }>;
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
   assertPageModule(session.user, "measurements");
 
   const params = await searchParams;
-  const currentYear = Number(currentPeriod().slice(0, 4));
+  const nowPeriod = currentPeriod();
+  const currentYear = Number(nowPeriod.slice(0, 4));
   const requestedYear = Number(params.ano);
   const year = Number.isInteger(requestedYear) && requestedYear >= 2000 && requestedYear <= 2100
     ? requestedYear
@@ -47,13 +50,67 @@ export default async function AnnualMeasurementsPage({
         ...(ownerIds.length > 1 ? [{ ownerId: { in: ownerIds.slice(1) } }] : []),
       ],
     },
-    include: { measurements: { where: { period: { gte: startPeriod, lte: endPeriod } } } },
-    orderBy: { priority: "asc" },
+    include: {
+      measurements: { where: { period: { gte: startPeriod, lte: endPeriod } } },
+      thresholdValidities: {
+        select: {
+          startPeriod: true,
+          endPeriod: true,
+          yellowRange: true,
+          redRange: true,
+          thresholdMode: true,
+          lowerLimit: true,
+          upperLimit: true,
+        },
+      },
+    },
+    orderBy: [{ priority: "asc" }, { name: "asc" }],
   });
 
-  const monthLabels = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  const selectedKpi = kpis.find((kpi) => kpi.id === params.kpi) ?? kpis[0] ?? null;
   const previousYear = year - 1;
   const nextYear = year + 1;
+  const yearHref = (y: number, kpiId?: string | null) =>
+    `/medicoes?ano=${y}${kpiId ? `&kpi=${kpiId}` : ""}`;
+
+  const locks = selectedKpi
+    ? await Promise.all(MONTHS.map(async (month) => {
+        const period = periodFor(year, month);
+        const lock = await findPeriodLock(period, selectedKpi.departmentId);
+        return [period, Boolean(lock)] as const;
+      }))
+    : [];
+  const lockMap = new Map(locks);
+  const closedCount = [...lockMap.values()].filter(Boolean).length;
+
+  const rows = selectedKpi
+    ? MONTHS.map((month) => {
+        const period = periodFor(year, month);
+        const measurement = selectedKpi.measurements.find((item) => item.period === period) ?? null;
+        const thresholds = thresholdsForPeriod(period, selectedKpi, selectedKpi.thresholdValidities);
+        const status = measurement
+          ? getKpiStatusFromThresholds(measurement.goal, measurement.actual, selectedKpi.direction, thresholds)
+          : "SEM_DADO";
+        return {
+          period,
+          month,
+          locked: lockMap.get(period) ?? false,
+          future: period > nowPeriod,
+          status,
+          measurement: measurement
+            ? {
+                goal: measurement.goal,
+                actual: measurement.actual,
+                measured: measurement.measured,
+                forecast: measurement.forecast,
+                justification: measurement.justification,
+                benchmark: measurement.benchmark,
+                benchmarkValue: measurement.benchmarkValue,
+              }
+            : null,
+        };
+      })
+    : [];
 
   return (
     <div className="flex flex-col gap-4">
@@ -63,63 +120,53 @@ export default async function AnnualMeasurementsPage({
             <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" /> Lançamento mensal
           </Link>
           <h1 className="page-title">Medições anuais</h1>
-          <p className="page-subtitle">Acompanhe o realizado, previsto e farol dos seus indicadores ao longo de {year}.</p>
+          <p className="page-subtitle">Grade colunar por item e ano — realizado, previsto, meta e farol.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Link href={`/medicoes?ano=${previousYear}`} className="btn" aria-label={`Ver medições de ${previousYear}`}>‹ {previousYear}</Link>
+          <Link href={yearHref(previousYear, selectedKpi?.id)} className="btn" aria-label={`Ver medições de ${previousYear}`}>‹ {previousYear}</Link>
           <span className="flex items-center gap-1 rounded-lg border border-[var(--color-border)] px-3 py-2 text-[13px] font-semibold text-[var(--color-ink-900)]">
             <CalendarRange className="h-4 w-4" aria-hidden="true" /> {year}
           </span>
-          <Link href={`/medicoes?ano=${nextYear}`} className="btn" aria-label={`Ver medições de ${nextYear}`}>{nextYear} ›</Link>
+          <Link href={yearHref(nextYear, selectedKpi?.id)} className="btn" aria-label={`Ver medições de ${nextYear}`}>{nextYear} ›</Link>
         </div>
       </div>
 
-      <div className="card overflow-hidden">
-        {kpis.length === 0 ? (
+      {kpis.length === 0 ? (
+        <div className="card overflow-hidden">
           <EmptyState icon={CalendarRange} title="Nenhum indicador encontrado" description="Cadastre um indicador ou peça uma delegação para acompanhar medições anuais." actions={[{ href: "/metas/novo", label: "Cadastrar indicador" }]} />
-        ) : (
-          <div className="table-scroll">
-            <table className="table-modern min-w-[1050px]">
-              <caption className="sr-only">Medições anuais dos indicadores em {year}.</caption>
-              <thead>
-                <tr>
-                  <th scope="col" className="sticky left-0 z-10 bg-[var(--color-surface)]">Indicador</th>
-                  {monthLabels.map((label) => <th scope="col" key={label} className="text-center">{label}</th>)}
-                  <th scope="col" className="text-right">Último valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {kpis.map((kpi) => {
-                  const measurements = new Map(kpi.measurements.map((measurement) => [measurement.period, measurement]));
-                  const latest = [...kpi.measurements].sort((a, b) => b.period.localeCompare(a.period))[0];
-                  const latestStatus = latest ? getKpiStatus(latest.goal, latest.actual, kpi.direction, kpi.yellowRange, kpi.redRange) : "SEM_DADO";
-                  return (
-                    <tr key={kpi.id}>
-                      <th scope="row" className="sticky left-0 z-10 bg-[var(--color-surface)]">
-                        <Link href={`/metas/${kpi.id}`} className="text-[13px] font-medium text-[var(--color-brand-700)] hover:underline">{kpi.name}</Link>
-                        <div className="text-[11px] text-[var(--color-ink-400)]">{kpi.metricUnit}</div>
-                      </th>
-                      {MONTHS.map((month) => {
-                        const measurement = measurements.get(periodFor(year, month));
-                        const status = measurement ? getKpiStatus(measurement.goal, measurement.actual, kpi.direction, kpi.yellowRange, kpi.redRange) : "SEM_DADO";
-                        return (
-                          <td key={month} className="text-center" title={measurement ? `${periodLabel(measurement.period)}: ${measurement.actual ?? "sem realizado"} / ${measurement.goal}` : `${monthLabels[month - 1]}: sem dado`}>
-                            <div className="flex items-center justify-center gap-1"><span className="inline-block h-3 w-3 rounded-full border border-[var(--color-border)]" style={{ backgroundColor: measurement ? STATUS_COLOR[status] : "transparent", borderColor: measurement ? STATUS_COLOR[status] : undefined }} aria-label={STATUS_LABEL[status]} /><AnnualMeasurementEditor kpiId={kpi.id} kpiName={kpi.name} period={periodFor(year, month)} measurement={measurement ?? null} disabled={periodFor(year, month) > currentPeriod()} /></div>
-                          </td>
-                        );
-                      })}
-                      <td className="num text-right">
-                        {latest?.actual !== null && latest?.actual !== undefined ? `${latest.actual} / ${latest.goal}` : "—"}
-                        <div className="mt-0.5"><span className={STATUS_BADGE_CLASS[latestStatus]}>{STATUS_LABEL[latestStatus]}</span></div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        </div>
+      ) : (
+        <>
+          <div className="card flex flex-wrap items-end gap-3 p-4">
+            <MedicoesKpiSelector
+              year={year}
+              selectedKpiId={selectedKpi!.id}
+              options={kpis.map((kpi) => ({ id: kpi.id, label: `${kpi.name} (${kpi.metricUnit})` }))}
+            />
+            {selectedKpi && (
+              <p className="pb-2 text-[12px] text-[var(--color-ink-500)]">
+                {selectedKpi.name} · IC-{String(selectedKpi.sequenceNumber).padStart(5, "0")}
+              </p>
+            )}
           </div>
-        )}
-      </div>
+
+          {closedCount > 0 && (
+            <div className="flex items-start gap-2 rounded-lg border border-[var(--color-amber-600)]/30 bg-[var(--color-amber-100)] px-4 py-3 text-[13px] text-[var(--color-amber-600)]" role="status">
+              <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <div>
+                <p className="font-semibold text-[var(--color-ink-900)]">{closedCount} {closedCount === 1 ? "mês fechado" : "meses fechados"} neste ano</p>
+                <p className="mt-0.5 text-[12px] text-[var(--color-ink-600)]">Meses com period lock não aceitam salvamento (bloqueio também no servidor).</p>
+              </div>
+            </div>
+          )}
+
+          {selectedKpi && (
+            <div className="card overflow-hidden">
+              <AnnualMeasurementGrid kpiId={selectedKpi.id} kpiName={selectedKpi.name} rows={rows} />
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

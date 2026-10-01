@@ -57,6 +57,22 @@ enum KpiCategory {
   KPI
 }
 
+/// How the green/yellow/red bands are defined for a KPI (and for each
+/// historical threshold window). PERCENT keeps the legacy % of goal behaviour;
+/// ABSOLUTE uses Limite Superior/Inferior in the unit of the indicator.
+enum ThresholdMode {
+  PERCENT
+  ABSOLUTE
+}
+
+/// Quattrus "Referencial de Amplitude" — which reference value the month/year
+/// amplitude band uses when painting the green zone around a measurement.
+enum AmplitudeReference {
+  FORECAST
+  MINIMUM
+  FIXED
+}
+
 /// A goal set by the owner starts PENDENTE and only counts as official once a
 /// manager/admin approves it; a goal set directly by a manager/admin is
 /// auto-approved. See decideGoalApproval in src/lib/measurement.ts.
@@ -294,6 +310,16 @@ model Kpi {
   weight              Int                    @default(0)
   yellowRange         Float                  @default(5)
   redRange            Float                  @default(15)
+  /// Current threshold mode for the item (mirrored onto new validity windows).
+  thresholdMode       ThresholdMode          @default(PERCENT)
+  /// Absolute green-band limits (unit of the indicator). Used when thresholdMode=ABSOLUTE.
+  upperLimit          Float?
+  lowerLimit          Float?
+  /// "Meta do Cliente" range shown in the Tipo de Item tab (informational + optional band hint).
+  clientMetaFrom      Float?
+  clientMetaTo        Float?
+  amplitudeMonth      AmplitudeReference     @default(FORECAST)
+  amplitudeYear       AmplitudeReference     @default(FORECAST)
   priority            Int                    @default(0)
   category            KpiCategory            @default(KPI)
   /// "Cliente" — free-text in the original (dropdown with an "Outro..."
@@ -472,15 +498,22 @@ model KpiMeasurementPeriod {
 }
 
 model KpiThresholdValidity {
-  id          String   @id @default(cuid())
-  kpiId       String
-  kpi         Kpi      @relation(fields: [kpiId], references: [id], onDelete: Cascade)
-  startPeriod String
-  endPeriod   String?
-  yellowRange Float
-  redRange    Float
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String             @id @default(cuid())
+  kpiId          String
+  kpi            Kpi                @relation(fields: [kpiId], references: [id], onDelete: Cascade)
+  startPeriod    String
+  endPeriod      String?
+  yellowRange    Float
+  redRange       Float
+  thresholdMode  ThresholdMode      @default(PERCENT)
+  upperLimit     Float?
+  lowerLimit     Float?
+  clientMetaFrom Float?
+  clientMetaTo   Float?
+  amplitudeMonth AmplitudeReference @default(FORECAST)
+  amplitudeYear  AmplitudeReference @default(FORECAST)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 
   @@index([kpiId, startPeriod])
 }

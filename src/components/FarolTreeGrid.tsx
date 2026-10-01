@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, ChevronDown, LineChart } from "lucide-react";
-import { STATUS_LABEL, type KpiStatus } from "@/lib/kpi";
+import { STATUS_LABEL, kpiNameTooltip, type KpiStatus } from "@/lib/kpi";
 import { MONTH_LABELS, summarizeRow } from "@/lib/farol";
 import type { FarolTreeNode } from "@/lib/farol-tree";
 import { ownerInitials, ownerColor } from "@/lib/avatar";
@@ -132,6 +132,14 @@ export function FarolTreeGrid({
               <Link
                 href={`/metas/${node.kpiId}`}
                 className="block truncate text-[12.5px] font-medium text-[var(--color-brand-700)] hover:underline"
+                title={kpiNameTooltip({
+                  sequenceNumber: node.sequenceNumber,
+                  name: node.name,
+                  metricUnit: node.metricUnit,
+                  category: node.category,
+                  chronicRedMonths: node.chronicRedMonths,
+                  description: node.description,
+                })}
               >
                 {node.name}
               </Link>

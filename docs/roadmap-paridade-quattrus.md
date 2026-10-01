@@ -79,12 +79,12 @@ estado mais recente.** Só marcar `[x]` o que for reconferido.
 
 ### Fase 1 — Cadastro do Item = Quattrus
 
-- [ ] Faixa absoluta: Limite Sup./Inf., Meta do Cliente, Referencial Amplitude
-- [ ] Conferir 7 abas vs. original
-- [ ] Tooltip Código / Indicador / Tipo / Vermelho Crônico / Descrição
-- [ ] Teste: mudar faixa em set. não altera farol de ago.
+- [x] Faixa absoluta: Limite Sup./Inf., Meta do Cliente, Referencial Amplitude
+- [x] Conferir 7 abas vs. original
+- [x] Tooltip Código / Indicador / Tipo / Vermelho Crônico / Descrição
+- [x] Teste: mudar faixa em set. não altera farol de ago.
 
-**Pronto quando:** mesmas opções de Tipo de Item do Quattrus (exceto exclusões escritas).
+**Pronto quando:** mesmas opções de Tipo de Item do Quattrus (exceto exclusões escritas). **✅ Código 2026-10-01.**
 
 ### Fase 2 — Dashboard = Meus itens de controle
 
@@ -94,15 +94,15 @@ estado mais recente.** Só marcar `[x]` o que for reconferido.
 - [x] Coluna Valor (Realizado + Meta) + P / C
 - [x] Performance: filtros por aba (virtualização adiada)
 
-**Pronto quando:** usuário Quattrus lança medição sem treinamento novo. **✅ Código 2026-09-30.**
+**Pronto quando:** usuário Quattrus lança medição sem treinamento novo. **✅ Código 2026-09-30 · merge checkpoint 2026-10-01.**
 
 ### Fase 3 — Medições anuais
 
-- [ ] Grade: Mês | Medido | Realizado | Previsto | Meta | Comentário | Benchmark
-- [ ] Navegação de ano e troca de item sem sair
-- [ ] Period lock em tela, URL e importação
+- [x] Grade: Mês | Medido | Realizado | Previsto | Meta | Comentário | Benchmark
+- [x] Navegação de ano e troca de item sem sair
+- [x] Period lock em tela, URL e importação
 
-**Pronto quando:** tela reconhecível por quem usava o Quattrus.
+**Pronto quando:** tela reconhecível por quem usava o Quattrus. **✅ Código 2026-10-01.**
 
 ### Fase 4 — Plano de ação (Gantt) sem matar o FCA
 
@@ -181,8 +181,8 @@ estado mais recente.** Só marcar `[x]` o que for reconferido.
 
 ## Status
 
-Criado em 2026-09-30. **Fase 0 concluída. Fase 2 implementada no código**
-(sub-abas, menu célula, drawer, P/C/Valor). Deploy + smoke Vercel pendentes.
-Próximo: Fase 1 (faixa absoluta) ou Fase 3 (medições anuais).
+Criado em 2026-09-30. **Marco M1 (Fases 0–3) implementado em 2026-10-01:**
+Fase 2 mergeada no checkpoint; Fase 1 faixa absoluta + vigência; Fase 3 grade
+colunar `/medicoes`. Smoke Vercel pós-deploy.
 
 Produção: https://quattrus-clone.vercel.app · Supabase `quattrus-clone`.

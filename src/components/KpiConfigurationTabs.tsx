@@ -10,7 +10,17 @@ import { KpiTotalizationPanel } from "@/components/KpiTotalizationPanel";
 
 type Option = { id: string; name: string; ownerName: string; departmentId: string | null };
 type Window = { startPeriod: string; endPeriod: string | null };
-type Threshold = Window & { yellowRange: number; redRange: number };
+type Threshold = Window & {
+  yellowRange: number;
+  redRange: number;
+  thresholdMode?: "PERCENT" | "ABSOLUTE";
+  upperLimit?: number | null;
+  lowerLimit?: number | null;
+  clientMetaFrom?: number | null;
+  clientMetaTo?: number | null;
+  amplitudeMonth?: "FORECAST" | "MINIMUM" | "FIXED";
+  amplitudeYear?: "FORECAST" | "MINIMUM" | "FIXED";
+};
 type TotalizationChild = {
   id: string;
   name: string;
@@ -53,12 +63,26 @@ export function KpiConfigurationTabs({
   kpiId,
   yellowRange,
   redRange,
+  thresholdMode = "PERCENT",
+  upperLimit = null,
+  lowerLimit = null,
+  clientMetaFrom = null,
+  clientMetaTo = null,
+  amplitudeMonth = "FORECAST",
+  amplitudeYear = "FORECAST",
   configuration,
   options,
 }: {
   kpiId: string;
   yellowRange: number;
   redRange: number;
+  thresholdMode?: "PERCENT" | "ABSOLUTE";
+  upperLimit?: number | null;
+  lowerLimit?: number | null;
+  clientMetaFrom?: number | null;
+  clientMetaTo?: number | null;
+  amplitudeMonth?: "FORECAST" | "MINIMUM" | "FIXED";
+  amplitudeYear?: "FORECAST" | "MINIMUM" | "FIXED";
   configuration: Configuration;
   options: Option[];
 }) {
@@ -68,6 +92,7 @@ export function KpiConfigurationTabs({
   const [sharingState, sharingAction] = useActionState(updateKpiSharing.bind(null, kpiId), null);
   const formula = configuration.formula;
   const threshold = configuration.thresholdValidities[0];
+  const [mode, setMode] = useState<"PERCENT" | "ABSOLUTE">(threshold?.thresholdMode ?? thresholdMode);
   const [yellowValue, setYellowValue] = useState(threshold?.yellowRange ?? yellowRange);
   const [redValue, setRedValue] = useState(threshold?.redRange ?? redRange);
 
@@ -108,20 +133,65 @@ export function KpiConfigurationTabs({
               <label className="flex flex-col gap-1.5"><span className="field-label">Denominador</span><select name="denominatorKpiId" defaultValue={formula?.denominatorKpiId ?? ""} className="input-field"><option value="">Selecione um item</option>{options.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.ownerName}</option>)}</select></label>
             </div>
             <label className="flex items-center gap-2 text-[12px] text-[var(--color-ink-700)]"><input name="denominatorAverage" type="checkbox" defaultChecked={formula?.denominatorAverage ?? false} /> Usar média do denominador</label>
-            <FieldError message={state?.fieldErrors?.numeratorKpiId} />
+
+            <div className="grid gap-3 border-t border-[var(--color-border)] pt-4">
+              <p className="text-[13px] font-semibold text-[var(--color-ink-800)]">Faixa Verde</p>
+              <label className="flex items-center gap-2 text-[12px] text-[var(--color-ink-700)]">
+                <input type="radio" name="thresholdMode" value="ABSOLUTE" checked={mode === "ABSOLUTE"} onChange={() => setMode("ABSOLUTE")} />
+                Informar Limite Superior e Inferior
+              </label>
+              <label className="flex items-center gap-2 text-[12px] text-[var(--color-ink-700)]">
+                <input type="radio" name="thresholdMode" value="PERCENT" checked={mode === "PERCENT"} onChange={() => setMode("PERCENT")} />
+                Informar Previsão e % de Tolerância
+              </label>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="flex flex-col gap-1.5"><span className="field-label">Limite inferior</span><input name="lowerLimit" type="number" step="0.01" defaultValue={threshold?.lowerLimit ?? lowerLimit ?? ""} disabled={mode !== "ABSOLUTE"} className="input-field disabled:opacity-50" /></label>
+                <label className="flex flex-col gap-1.5"><span className="field-label">Limite superior</span><input name="upperLimit" type="number" step="0.01" defaultValue={threshold?.upperLimit ?? upperLimit ?? ""} disabled={mode !== "ABSOLUTE"} className="input-field disabled:opacity-50" /></label>
+              </div>
+              <FieldError message={state?.fieldErrors?.lowerLimit ?? state?.fieldErrors?.upperLimit} />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="flex flex-col gap-1.5"><span className="field-label">Meta do cliente (De)</span><input name="clientMetaFrom" type="number" step="0.01" defaultValue={threshold?.clientMetaFrom ?? clientMetaFrom ?? ""} className="input-field" /></label>
+                <label className="flex flex-col gap-1.5"><span className="field-label">Meta do cliente (Até)</span><input name="clientMetaTo" type="number" step="0.01" defaultValue={threshold?.clientMetaTo ?? clientMetaTo ?? ""} className="input-field" /></label>
+              </div>
+              <FieldError message={state?.fieldErrors?.clientMetaTo} />
+            </div>
+
+            <div className="grid gap-4 border-t border-[var(--color-border)] pt-4 sm:grid-cols-2">
+              <fieldset className="flex flex-col gap-2">
+                <legend className="field-label">Referencial de amplitude no mês</legend>
+                {(["FORECAST", "MINIMUM", "FIXED"] as const).map((value) => (
+                  <label key={`m-${value}`} className="flex items-center gap-2 text-[12px] text-[var(--color-ink-700)]">
+                    <input type="radio" name="amplitudeMonth" value={value} defaultChecked={(threshold?.amplitudeMonth ?? amplitudeMonth) === value} />
+                    {value === "FORECAST" ? "Variável — Previsto" : value === "MINIMUM" ? "Variável — Mínimo" : "Fixo"}
+                  </label>
+                ))}
+              </fieldset>
+              <fieldset className="flex flex-col gap-2">
+                <legend className="field-label">Referencial de amplitude no ano</legend>
+                {(["FORECAST", "MINIMUM", "FIXED"] as const).map((value) => (
+                  <label key={`y-${value}`} className="flex items-center gap-2 text-[12px] text-[var(--color-ink-700)]">
+                    <input type="radio" name="amplitudeYear" value={value} defaultChecked={(threshold?.amplitudeYear ?? amplitudeYear) === value} />
+                    {value === "FORECAST" ? "Variável — Previsto" : value === "MINIMUM" ? "Variável — Mínimo" : "Fixo"}
+                  </label>
+                ))}
+              </fieldset>
+            </div>
+
             <div className="grid gap-4 border-t border-[var(--color-border)] pt-4 sm:grid-cols-3">
               <label className="flex flex-col gap-1.5"><span className="field-label">Vigência das faixas a partir de</span><input name="thresholdStart" type="month" defaultValue={threshold?.startPeriod ?? new Date().toISOString().slice(0, 7)} className="input-field" /></label>
               <label className="flex flex-col gap-1.5"><span className="field-label">Até</span><input name="thresholdEnd" type="month" defaultValue={threshold?.endPeriod ?? ""} className="input-field" /></label>
               <div className="grid grid-cols-2 gap-3"><label className="flex flex-col gap-1.5"><span className="field-label">Amarela (%)</span><input name="yellowRange" type="number" step="0.1" value={yellowValue} onChange={(e) => setYellowValue(Number(e.target.value))} className="input-field" /></label><label className="flex flex-col gap-1.5"><span className="field-label">Vermelha (%)</span><input name="redRange" type="number" step="0.1" value={redValue} onChange={(e) => setRedValue(Number(e.target.value))} className="input-field" /></label></div>
             </div>
-            <KpiThresholdEditor
-              yellowRange={yellowValue}
-              redRange={redValue}
-              onChange={({ yellowRange: y, redRange: r }) => {
-                setYellowValue(y);
-                setRedValue(r);
-              }}
-            />
+            {mode === "PERCENT" && (
+              <KpiThresholdEditor
+                yellowRange={yellowValue}
+                redRange={redValue}
+                onChange={({ yellowRange: y, redRange: r }) => {
+                  setYellowValue(y);
+                  setRedValue(r);
+                }}
+              />
+            )}
             <FieldError message={state?.fieldErrors?.redRange} />
           </section>
 

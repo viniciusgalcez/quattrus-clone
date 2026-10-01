@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getDeviationPct, getKpiStatus, thresholdsForPeriod } from "@/lib/kpi";
+import { getDeviationPct, getKpiStatusFromThresholds, thresholdsForPeriod } from "@/lib/kpi";
 import { MONTH_LABELS, periodsOfYear, type FarolCell } from "@/lib/farol";
 
 export type BandPoint = {
@@ -15,6 +15,9 @@ export type FarolTreeNode = {
   kpiId: string;
   name: string;
   metricUnit: string;
+  sequenceNumber: number;
+  description: string | null;
+  chronicRedMonths: number | null;
   ownerId: string;
   ownerName: string;
   /** Display order / "P" column (lower = higher priority). */
@@ -56,7 +59,19 @@ export async function buildFarolTree(ownerIds: string[], year: number, visibleKp
         },
       },
       thresholdValidities: {
-        select: { startPeriod: true, endPeriod: true, yellowRange: true, redRange: true },
+        select: {
+          startPeriod: true,
+          endPeriod: true,
+          yellowRange: true,
+          redRange: true,
+          thresholdMode: true,
+          lowerLimit: true,
+          upperLimit: true,
+          clientMetaFrom: true,
+          clientMetaTo: true,
+          amplitudeMonth: true,
+          amplitudeYear: true,
+        },
       },
     },
     orderBy: [{ priority: "asc" }, { name: "asc" }],
@@ -92,7 +107,7 @@ export async function buildFarolTree(ownerIds: string[], year: number, visibleKp
         measured: m.measured,
         justification: m.justification,
         deviation: getDeviationPct(m.goal, m.actual, kpi.direction),
-        status: getKpiStatus(m.goal, m.actual, kpi.direction, thresholds.yellowRange, thresholds.redRange),
+        status: getKpiStatusFromThresholds(m.goal, m.actual, kpi.direction, thresholds),
         measurementId: m.id,
       };
     });
@@ -100,11 +115,23 @@ export async function buildFarolTree(ownerIds: string[], year: number, visibleKp
     // The green band is the tolerance zone around the goal (± yellowRange%,
     // the same threshold that decides VERDE vs AMARELO) — an approximation of
     // the real Quattrus "Faixa Verde" band, not a stored value of its own.
+    // In ABSOLUTE mode the stored lower/upper limits are the band.
     const bandData: BandPoint[] = cells.map((cell) => {
       if (cell.goal === null) {
         return { name: cell.monthLabel, meta: null, realizado: null, faixaBase: null, faixaAltura: null };
       }
       const thresholds = thresholdsForPeriod(cell.period, kpi, kpi.thresholdValidities);
+      if (thresholds.thresholdMode === "ABSOLUTE" && thresholds.lowerLimit != null && thresholds.upperLimit != null) {
+        const lo = Math.min(thresholds.lowerLimit, thresholds.upperLimit);
+        const hi = Math.max(thresholds.lowerLimit, thresholds.upperLimit);
+        return {
+          name: cell.monthLabel,
+          meta: cell.goal,
+          realizado: cell.actual,
+          faixaBase: lo,
+          faixaAltura: hi - lo,
+        };
+      }
       const tolerance = (cell.goal * thresholds.yellowRange) / 100;
       const low = cell.goal - tolerance;
       const high = cell.goal + tolerance;
@@ -121,6 +148,9 @@ export async function buildFarolTree(ownerIds: string[], year: number, visibleKp
       kpiId: kpi.id,
       name: kpi.name,
       metricUnit: kpi.metricUnit,
+      sequenceNumber: kpi.sequenceNumber,
+      description: kpi.description,
+      chronicRedMonths: kpi.chronicRedMonths,
       ownerId: kpi.owner.id,
       ownerName: kpi.owner.name,
       priority: kpi.priority,

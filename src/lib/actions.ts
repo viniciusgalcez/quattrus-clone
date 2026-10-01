@@ -417,13 +417,46 @@ export async function saveKpiConfiguration(
       const existing = await tx.kpiMeasurementPeriod.findFirst({ where: { kpiId, startPeriod: data.measurementValidityStart || currentPeriod(), endPeriod: data.measurementValidityEnd || null } });
       if (!existing) await tx.kpiMeasurementPeriod.create({ data: { kpiId, startPeriod: data.measurementValidityStart || currentPeriod(), endPeriod: data.measurementValidityEnd || null } });
     }
+    const thresholdFields = {
+      yellowRange: data.yellowRange,
+      redRange: data.redRange,
+      thresholdMode: data.thresholdMode,
+      upperLimit: data.upperLimit,
+      lowerLimit: data.lowerLimit,
+      clientMetaFrom: data.clientMetaFrom,
+      clientMetaTo: data.clientMetaTo,
+      amplitudeMonth: data.amplitudeMonth,
+      amplitudeYear: data.amplitudeYear,
+    };
     const existingThreshold = await tx.kpiThresholdValidity.findFirst({
-      where: { kpiId, startPeriod: data.thresholdStart, endPeriod: data.thresholdEnd || null, yellowRange: data.yellowRange, redRange: data.redRange },
+      where: {
+        kpiId,
+        startPeriod: data.thresholdStart,
+        endPeriod: data.thresholdEnd || null,
+        yellowRange: data.yellowRange,
+        redRange: data.redRange,
+        thresholdMode: data.thresholdMode,
+        upperLimit: data.upperLimit,
+        lowerLimit: data.lowerLimit,
+      },
     });
     if (!existingThreshold) {
-      await tx.kpiThresholdValidity.create({ data: { kpiId, startPeriod: data.thresholdStart, endPeriod: data.thresholdEnd || null, yellowRange: data.yellowRange, redRange: data.redRange } });
+      await tx.kpiThresholdValidity.create({
+        data: {
+          kpiId,
+          startPeriod: data.thresholdStart,
+          endPeriod: data.thresholdEnd || null,
+          ...thresholdFields,
+        },
+      });
     }
-    await tx.kpi.update({ where: { id: kpiId }, data: { calculationType: data.formulaKind === "TOTALIZER" ? "SUM" : data.formulaKind === "QUOTIENT" ? "MANUAL" : data.formulaKind, yellowRange: data.yellowRange, redRange: data.redRange } });
+    await tx.kpi.update({
+      where: { id: kpiId },
+      data: {
+        calculationType: data.formulaKind === "TOTALIZER" ? "SUM" : data.formulaKind === "QUOTIENT" ? "MANUAL" : data.formulaKind,
+        ...thresholdFields,
+      },
+    });
     await tx.kpiFormula.upsert({
       where: { kpiId },
       create: { kpiId, kind: data.formulaKind, numeratorKpiId: data.formulaKind === "QUOTIENT" ? data.numeratorKpiId : null, denominatorKpiId: data.formulaKind === "QUOTIENT" ? data.denominatorKpiId : null, denominatorAverage: data.formulaKind === "QUOTIENT" && data.denominatorAverage },
@@ -611,7 +644,11 @@ export async function upsertMeasurement(formData: FormData) {
   await assertFcaResolved(kpiId, period);
 
   const { goal, actual } = parsed.data;
-  const trafficLight = getKpiStatus(goal, actual, kpi.direction, kpi.yellowRange, kpi.redRange);
+  const trafficLight = getKpiStatus(goal, actual, kpi.direction, kpi.yellowRange, kpi.redRange, {
+    thresholdMode: kpi.thresholdMode,
+    lowerLimit: kpi.lowerLimit,
+    upperLimit: kpi.upperLimit,
+  });
 
   const existing = await prisma.measurement.findUnique({
     where: { kpiId_period: { kpiId, period } },
@@ -776,11 +813,19 @@ async function upsertAnnualMeasurementRaw(formData: FormData) {
 
   const [existing, threshold] = await Promise.all([
     prisma.measurement.findUnique({ where: { kpiId_period: { kpiId: data.kpiId, period: data.period } }, select: { id: true, goal: true, actual: true, measured: true, forecast: true, justification: true, benchmark: true, benchmarkValue: true, trafficLight: true, goalApprovalStatus: true } }),
-    prisma.kpiThresholdValidity.findFirst({ where: { kpiId: data.kpiId, startPeriod: { lte: data.period }, OR: [{ endPeriod: null }, { endPeriod: { gte: data.period } }] }, orderBy: { startPeriod: "desc" }, select: { yellowRange: true, redRange: true } }),
+    prisma.kpiThresholdValidity.findFirst({
+      where: { kpiId: data.kpiId, startPeriod: { lte: data.period }, OR: [{ endPeriod: null }, { endPeriod: { gte: data.period } }] },
+      orderBy: { startPeriod: "desc" },
+      select: { yellowRange: true, redRange: true, thresholdMode: true, lowerLimit: true, upperLimit: true },
+    }),
   ]);
   const yellowRange = threshold?.yellowRange ?? kpi.yellowRange;
   const redRange = threshold?.redRange ?? kpi.redRange;
-  const trafficLight = getKpiStatus(data.goal, data.measured ? data.actual : null, kpi.direction, yellowRange, redRange);
+  const trafficLight = getKpiStatus(data.goal, data.measured ? data.actual : null, kpi.direction, yellowRange, redRange, {
+    thresholdMode: threshold?.thresholdMode ?? kpi.thresholdMode,
+    lowerLimit: threshold?.lowerLimit ?? kpi.lowerLimit,
+    upperLimit: threshold?.upperLimit ?? kpi.upperLimit,
+  });
   const goalApprovalStatus = decideGoalApproval({
     actorRole: user.role as "ADMIN" | "GESTOR" | "COLABORADOR",
     goalChanged: existing ? existing.goal !== data.goal : true,
@@ -1092,7 +1137,24 @@ export async function reviewForecast(forecastId: string, formData: FormData): Pr
     const user = await requireUser("approvals");
     const parsed = reviewForecastSchema.safeParse(Object.fromEntries(formData));
     if (!parsed.success) throw new Error(Object.values(fieldErrorsFrom(parsed.error))[0] ?? "Decisão inválida.");
-    const forecast = await prisma.forecastRequest.findUnique({ where: { id: forecastId }, include: { kpi: { select: { ownerId: true, departmentId: true, direction: true, yellowRange: true, redRange: true, parentId: true } } } });
+    const forecast = await prisma.forecastRequest.findUnique({
+      where: { id: forecastId },
+      include: {
+        kpi: {
+          select: {
+            ownerId: true,
+            departmentId: true,
+            direction: true,
+            yellowRange: true,
+            redRange: true,
+            thresholdMode: true,
+            lowerLimit: true,
+            upperLimit: true,
+            parentId: true,
+          },
+        },
+      },
+    });
     if (!forecast) throw new ForbiddenError("Previsão não encontrada.");
     if (forecast.status !== "PENDENTE") throw new Error("Esta previsão já foi analisada.");
     if (forecast.kpi.ownerId === user.id || !(await canView(user.id, user.role, forecast.kpi.ownerId))) {
@@ -1116,7 +1178,11 @@ export async function reviewForecast(forecastId: string, formData: FormData): Pr
       const goal = forecast.proposedGoal ?? current?.goal;
       const actual = forecast.proposedActual ?? current?.actual ?? null;
       if (goal === undefined) throw new Error("A previsão aprovada não possui uma meta válida.");
-      const trafficLight = getKpiStatus(goal, actual, forecast.kpi.direction, forecast.kpi.yellowRange, forecast.kpi.redRange);
+      const trafficLight = getKpiStatus(goal, actual, forecast.kpi.direction, forecast.kpi.yellowRange, forecast.kpi.redRange, {
+        thresholdMode: forecast.kpi.thresholdMode,
+        lowerLimit: forecast.kpi.lowerLimit,
+        upperLimit: forecast.kpi.upperLimit,
+      });
 
       await tx.measurement.upsert({
         where: { kpiId_period: { kpiId: forecast.kpiId, period: forecast.period } },

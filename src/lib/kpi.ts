@@ -2,11 +2,45 @@
 
 export type KpiStatus = "VERDE" | "AMARELO" | "VERMELHO" | "CRITICO" | "SEM_DADO";
 
+export type ThresholdMode = "PERCENT" | "ABSOLUTE";
+export type AmplitudeReference = "FORECAST" | "MINIMUM" | "FIXED";
+
 export type ThresholdWindow = {
   startPeriod: string;
   endPeriod: string | null;
   yellowRange: number;
   redRange: number;
+  thresholdMode?: ThresholdMode | null;
+  upperLimit?: number | null;
+  lowerLimit?: number | null;
+  clientMetaFrom?: number | null;
+  clientMetaTo?: number | null;
+  amplitudeMonth?: AmplitudeReference | null;
+  amplitudeYear?: AmplitudeReference | null;
+};
+
+export type ResolvedThresholds = {
+  yellowRange: number;
+  redRange: number;
+  thresholdMode: ThresholdMode;
+  upperLimit: number | null;
+  lowerLimit: number | null;
+  clientMetaFrom: number | null;
+  clientMetaTo: number | null;
+  amplitudeMonth: AmplitudeReference;
+  amplitudeYear: AmplitudeReference;
+};
+
+type ThresholdFallback = {
+  yellowRange: number;
+  redRange: number;
+  thresholdMode?: ThresholdMode | null;
+  upperLimit?: number | null;
+  lowerLimit?: number | null;
+  clientMetaFrom?: number | null;
+  clientMetaTo?: number | null;
+  amplitudeMonth?: AmplitudeReference | null;
+  amplitudeYear?: AmplitudeReference | null;
 };
 
 /**
@@ -16,15 +50,24 @@ export type ThresholdWindow = {
  */
 export function thresholdsForPeriod(
   period: string,
-  fallback: { yellowRange: number; redRange: number },
+  fallback: ThresholdFallback,
   windows: ThresholdWindow[] | undefined
-) {
+): ResolvedThresholds {
   const active = (windows ?? [])
     .filter((window) => window.startPeriod <= period && (!window.endPeriod || window.endPeriod >= period))
     .sort((left, right) => right.startPeriod.localeCompare(left.startPeriod))[0];
-  return active
-    ? { yellowRange: active.yellowRange, redRange: active.redRange }
-    : fallback;
+  const source = active ?? fallback;
+  return {
+    yellowRange: source.yellowRange,
+    redRange: source.redRange,
+    thresholdMode: source.thresholdMode ?? "PERCENT",
+    upperLimit: source.upperLimit ?? null,
+    lowerLimit: source.lowerLimit ?? null,
+    clientMetaFrom: source.clientMetaFrom ?? null,
+    clientMetaTo: source.clientMetaTo ?? null,
+    amplitudeMonth: source.amplitudeMonth ?? "FORECAST",
+    amplitudeYear: source.amplitudeYear ?? "FORECAST",
+  };
 }
 
 /**
@@ -56,14 +99,74 @@ export function getDeviationPct(
   return rawPct;
 }
 
+function classifyGap(gapPct: number, yellowRange: number, redRange: number): KpiStatus {
+  if (gapPct <= yellowRange) return "AMARELO";
+  if (gapPct <= Math.max(redRange, yellowRange)) return "VERMELHO";
+  return "CRITICO";
+}
+
+/**
+ * Absolute green band: VERDE when actual is inside [lower, upper]. Direction
+ * still matters outside the band — beating the band (MORE above upper, LESS
+ * below lower) stays VERDE. Misses are ranked by distance relative to band
+ * width (or the single limit / goal when only one bound exists), using the
+ * vigência yellow/red % as tier cutoffs.
+ */
+function getAbsoluteKpiStatus(
+  goal: number,
+  actual: number,
+  direction: Direction,
+  yellowRange: number,
+  redRange: number,
+  lowerLimit: number | null,
+  upperLimit: number | null
+): KpiStatus {
+  const hasLower = lowerLimit !== null && lowerLimit !== undefined;
+  const hasUpper = upperLimit !== null && upperLimit !== undefined;
+
+  if (hasLower && hasUpper) {
+    const lo = Math.min(lowerLimit!, upperLimit!);
+    const hi = Math.max(lowerLimit!, upperLimit!);
+    if (actual >= lo && actual <= hi) return "VERDE";
+    if (direction === "MORE" && actual > hi) return "VERDE";
+    if (direction === "LESS" && actual < lo) return "VERDE";
+
+    const width = Math.max(hi - lo, 1);
+    const distance = actual < lo ? lo - actual : actual - hi;
+    return classifyGap((distance / width) * 100, yellowRange, redRange);
+  }
+
+  if (hasLower) {
+    if (direction === "MORE" || direction === "EQUAL") {
+      if (actual >= lowerLimit!) return "VERDE";
+      const base = Math.abs(lowerLimit!) || Math.abs(goal) || 1;
+      return classifyGap(((lowerLimit! - actual) / base) * 100, yellowRange, redRange);
+    }
+    // LESS: lower is the "too high" edge when only lower is set — fall through
+    // to percent-of-goal using the bound as the effective goal.
+    return getPercentKpiStatus(lowerLimit!, actual, direction, yellowRange, redRange);
+  }
+
+  if (hasUpper) {
+    if (direction === "LESS" || direction === "EQUAL") {
+      if (actual <= upperLimit!) return "VERDE";
+      const base = Math.abs(upperLimit!) || Math.abs(goal) || 1;
+      return classifyGap(((actual - upperLimit!) / base) * 100, yellowRange, redRange);
+    }
+    return getPercentKpiStatus(upperLimit!, actual, direction, yellowRange, redRange);
+  }
+
+  return getPercentKpiStatus(goal, actual, direction, yellowRange, redRange);
+}
+
 /**
  * Three tolerance tiers beyond the goal: within `yellowRange` = AMARELO,
  * beyond that but within `redRange` = VERMELHO, beyond `redRange` = CRITICO.
  * `redRange` is expected to be >= `yellowRange` (enforced at input validation).
  */
-export function getKpiStatus(
+function getPercentKpiStatus(
   goal: number,
-  actual: number | null | undefined,
+  actual: number,
   direction: Direction,
   yellowRange: number,
   redRange: number
@@ -71,10 +174,56 @@ export function getKpiStatus(
   const deviation = getDeviationPct(goal, actual, direction);
   if (deviation === null) return "SEM_DADO";
   if (deviation >= 0) return "VERDE";
-  const gap = Math.abs(deviation);
-  if (gap <= yellowRange) return "AMARELO";
-  if (gap <= Math.max(redRange, yellowRange)) return "VERMELHO";
-  return "CRITICO";
+  return classifyGap(Math.abs(deviation), yellowRange, redRange);
+}
+
+/**
+ * Three tolerance tiers beyond the goal: within `yellowRange` = AMARELO,
+ * beyond that but within `redRange` = VERMELHO, beyond `redRange` = CRITICO.
+ * `redRange` is expected to be >= `yellowRange` (enforced at input validation).
+ *
+ * Optional absolute bounds (6th arg) switch to Limite Superior/Inferior logic
+ * without breaking existing PERCENT call sites.
+ */
+export function getKpiStatus(
+  goal: number,
+  actual: number | null | undefined,
+  direction: Direction,
+  yellowRange: number,
+  redRange: number,
+  absolute?: {
+    thresholdMode?: ThresholdMode | null;
+    lowerLimit?: number | null;
+    upperLimit?: number | null;
+  }
+): KpiStatus {
+  if (actual === null || actual === undefined) return "SEM_DADO";
+  if (absolute?.thresholdMode === "ABSOLUTE") {
+    return getAbsoluteKpiStatus(
+      goal,
+      actual,
+      direction,
+      yellowRange,
+      redRange,
+      absolute.lowerLimit ?? null,
+      absolute.upperLimit ?? null
+    );
+  }
+  return getPercentKpiStatus(goal, actual, direction, yellowRange, redRange);
+}
+
+/** Convenience: resolve status from a full thresholds object for a period. */
+export function getKpiStatusFromThresholds(
+  goal: number,
+  actual: number | null | undefined,
+  direction: Direction,
+  thresholds: Pick<ResolvedThresholds, "yellowRange" | "redRange" | "thresholdMode" | "lowerLimit" | "upperLimit">
+): KpiStatus {
+  return getKpiStatus(goal, actual, direction, thresholds.yellowRange, thresholds.redRange, {
+    thresholdMode: thresholds.thresholdMode,
+    lowerLimit: thresholds.lowerLimit,
+    upperLimit: thresholds.upperLimit,
+  });
 }
 
 export const STATUS_COLOR: Record<KpiStatus, string> = {
@@ -121,4 +270,25 @@ export function periodLabel(period: string): string {
     "Jul", "Ago", "Set", "Out", "Nov", "Dez",
   ];
   return `${meses[Number(month) - 1]}/${year.slice(2)}`;
+}
+
+/** Hover text for KPI name (farol / lists) — Código, Indicador, Tipo, Crônico, Descrição. */
+export function kpiNameTooltip(kpi: {
+  sequenceNumber: number;
+  name: string;
+  metricUnit: string;
+  category?: string | null;
+  chronicRedMonths?: number | null;
+  description?: string | null;
+}): string {
+  const code = `IC-${String(kpi.sequenceNumber).padStart(5, "0")}`;
+  const lines = [
+    `Código: ${code}`,
+    `Item de Controle: ${kpi.name}`,
+    `Indicador: ${kpi.metricUnit}`,
+    `Tipo: ${kpi.category ?? "KPI"}`,
+    kpi.chronicRedMonths != null ? `Vermelho Crônico: ${kpi.chronicRedMonths}` : null,
+    kpi.description ? `Descrição: ${kpi.description}` : null,
+  ];
+  return lines.filter(Boolean).join("\n");
 }

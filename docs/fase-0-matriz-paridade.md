@@ -27,11 +27,11 @@ Espelho Obsidian: `Projetos/Gestiona/Fase-0-Matriz-Paridade.md`.
 | G08 | Menu célula: Editar / Pareto / Barras | Igual* | `KpiCellMenu` | — / 9 |
 | G09 | Drawer edição rápida completo | Igual* | Drawer + Medido/Realizado/Previsto/Meta/Comentário | — / 9 |
 | G10 | Menu linha ⋮ | Igual* | `KpiRowMenu.tsx` | — |
-| G11 | Cadastro 7 abas | Parcial | Editar + `KpiConfigurationTabs` (6 abas config) | 1 |
-| G12 | Faixa absoluta (Limite Sup./Inf., Meta Cliente) | Ausente | Só `%` yellow/red | 1 |
+| G11 | Cadastro 7 abas | Parcial* | Editar + `KpiConfigurationTabs` (Dados + 6 config); faixa absoluta na aba Tipo | 1 |
+| G12 | Faixa absoluta (Limite Sup./Inf., Meta Cliente) | Igual* | `thresholdMode` PERCENT\|ABSOLUTE + limites/amplitude | — / 9 |
 | G13 | Limite das cores visual (%) | Igual | `KpiThresholdEditor.tsx` | — |
 | G14 | Fórmula / quociente / totalizador / vigências | Igual* | Schema + abas | 8 |
-| G15 | Medições anuais grade completa | Parcial | `/medicoes` bolinhas+modal, não grade colunar | 3 |
+| G15 | Medições anuais grade completa | Igual* | `/medicoes` grade colunar item×ano + period lock | — / 9 |
 | G16 | Period lock | Extra | Existe | — |
 | G17 | Gantt arrastável | Parcial | `ActionPlanGantt` barras mensais sem drag | 4 |
 | G18 | FCA 5 Porquês | Extra | Manter (D2) | — |
