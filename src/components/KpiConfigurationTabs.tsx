@@ -126,7 +126,7 @@ export function KpiConfigurationTabs({
                   <option value="MANUAL">Lançamento manual</option><option value="SUM">Somatório de períodos</option><option value="AVERAGE">Média de períodos</option><option value="WEIGHTED">Média ponderada</option><option value="QUOTIENT">Quociente</option><option value="TOTALIZER">Totalizador dos subordinados</option>
                 </select>
               </label>
-              <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2 text-[12px] text-[var(--color-ink-600)]">Quocientes usam valores medidos dos itens selecionados. A divisão por zero resulta em “sem dado”.</div>
+              <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2 text-[12px] text-[var(--color-ink-600)]">Quocientes usam valores medidos dos itens selecionados. Denominador zero resulta em sem dado: “Denominador zero — o quociente fica sem dado até o denominador ser diferente de zero.”</div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="flex flex-col gap-1.5"><span className="field-label">Numerador</span><select name="numeratorKpiId" defaultValue={formula?.numeratorKpiId ?? ""} className="input-field"><option value="">Selecione um item</option>{options.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.ownerName}</option>)}</select></label>

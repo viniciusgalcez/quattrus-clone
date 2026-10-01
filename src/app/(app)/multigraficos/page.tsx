@@ -19,6 +19,7 @@ import {
 } from "@/lib/multigraficos-actions";
 import { KpiBandChart } from "@/components/KpiBandChart";
 import { EmptyState } from "@/components/EmptyState";
+import { MultiChartSlotCard } from "@/components/MultiChartSlotCard";
 
 function slotLabel(position: number) {
   return `Quadrante ${position + 1}`;
@@ -64,7 +65,8 @@ export default async function MultigraficosPage({
           </div>
           <h1 className="page-title">Multigráficos</h1>
           <p className="page-subtitle">
-            Monte abas pessoais com até {MAX_MULTICHART_SLOTS} indicadores lado a lado em {year}.
+            Monte abas pessoais com até {MAX_MULTICHART_SLOTS} indicadores lado a lado em {year}. Arraste um
+            quadrante preenchido para trocar de posição.
           </p>
         </div>
       </div>
@@ -148,8 +150,13 @@ export default async function MultigraficosPage({
                 const slot = activeSlots.find((item) => item.position === position);
                 const chart = slot ? chartsById.get(slot.kpiId) : null;
                 return (
-                  <div key={position} className="card flex h-[360px] min-w-0 flex-col p-4">
-                    <div className="mb-3 flex items-start justify-between gap-3">
+                  <MultiChartSlotCard
+                    key={position}
+                    tabId={activeTab.id}
+                    position={position}
+                    hasChart={Boolean(chart)}
+                  >
+                    <div className="mb-3 flex items-start justify-between gap-3 pr-16">
                       <div className="min-w-0">
                         <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--color-ink-400)]">
                           {slotLabel(position)}
@@ -204,7 +211,7 @@ export default async function MultigraficosPage({
                         />
                       )}
                     </div>
-                  </div>
+                  </MultiChartSlotCard>
                 );
               })}
             </div>

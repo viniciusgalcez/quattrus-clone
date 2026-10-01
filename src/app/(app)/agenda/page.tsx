@@ -6,11 +6,13 @@ import {
   EVENT_CATEGORY_ORDER,
   EVENT_CATEGORY_DOT_CLASS,
   agendaRange,
+  dateKey,
   normalizeEventCategoryFilters,
   parseAgendaAnchor,
 } from "@/lib/event";
 import { NovoEventoForm } from "@/components/NovoEventoForm";
 import { AgendaViews } from "@/components/AgendaViews";
+import { AgendaMiniCalendar } from "@/components/AgendaMiniCalendar";
 import { assertPageModule } from "@/lib/module-access";
 
 export default async function AgendaPage({ searchParams }: { searchParams: Promise<{ view?: string; date?: string; category?: string | string[] }> }) {
@@ -37,6 +39,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
   });
   const users = await prisma.user.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } });
   const allCategoriesVisible = selectedCategories.length === 0;
+  const eventDates = [...new Set(events.map((event) => dateKey(event.startAt)))];
 
   return (
     <div className="flex flex-col gap-4 p-2">
@@ -71,7 +74,15 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
 
       <NovoEventoForm users={users} />
 
-      <AgendaViews events={events} view={requestedView} anchor={anchor} categories={selectedCategories} />
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[260px_1fr]">
+        <AgendaMiniCalendar
+          anchor={anchor}
+          view={requestedView}
+          categories={selectedCategories}
+          eventDates={eventDates}
+        />
+        <AgendaViews events={events} view={requestedView} anchor={anchor} categories={selectedCategories} />
+      </div>
     </div>
   );
 }

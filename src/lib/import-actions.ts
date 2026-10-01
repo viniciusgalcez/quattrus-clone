@@ -44,6 +44,14 @@ import { assertPeriodWritable } from "@/lib/period-locks";
 import { recordAuditLog } from "@/lib/audit";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getGoalApproverIds, notifyUsers } from "@/lib/notifications";
+import {
+  assertNoConcurrentImport,
+  createImportJobShell,
+  enqueueImportProcessing,
+  finalizeImportJob,
+  shouldQueueImport,
+  type ImportReport,
+} from "@/lib/import-queue";
 
 type SessionUser = { id: string; username: string; role: string };
 const MAX_CSV_BYTES = (process.env.VERCEL ? 4 : 15) * 1024 * 1024;
@@ -52,11 +60,7 @@ const OLE_XLS_MAGIC = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1] as const;
 
 type TabularFile = { rows: string[][]; fileName: string; contentHash: string };
 
-export type ImportReport = {
-  created: number;
-  updated: number;
-  errors: { line: number; message: string }[];
-};
+export type { ImportReport };
 
 export type ImportState = { error?: string; report?: ImportReport };
 
@@ -131,6 +135,8 @@ export async function importKpisCsv(_prevState: ImportState | null, formData: Fo
   if (!checkRateLimit("import", user.id, { limit: 5, windowMs: 60 * 1000 })) {
     return { error: "Muitas importações em pouco tempo. Aguarde um minuto e tente novamente." };
   }
+  const busy = await assertNoConcurrentImport(user.id);
+  if (busy) return { error: busy };
 
   let file: TabularFile;
   try {
@@ -142,34 +148,61 @@ export async function importKpisCsv(_prevState: ImportState | null, formData: Fo
   const parsedRows = parseKpiImportRows(file.rows);
   if (parsedRows.length === 0) return { error: "Nenhuma linha encontrada no arquivo." };
 
-  const report: ImportReport = { created: 0, updated: 0, errors: [] };
-
-  for (const row of parsedRows) {
-    if (!row.ok) {
-      report.errors.push({ line: row.line, message: row.error });
-      continue;
+  async function processRows(): Promise<ImportReport> {
+    const report: ImportReport = { created: 0, updated: 0, errors: [] };
+    for (const row of parsedRows) {
+      if (!row.ok) {
+        report.errors.push({ line: row.line, message: row.error });
+        continue;
+      }
+      try {
+        const created = await importKpiRow(row.data, user, file.contentHash, row.line);
+        if (created) report.created++;
+        else report.updated++;
+      } catch (err) {
+        report.errors.push({
+          line: row.line,
+          message: err instanceof Error ? err.message : "Falha ao importar a linha.",
+        });
+      }
     }
-    try {
-      const created = await importKpiRow(row.data, user, file.contentHash, row.line);
-      if (created) report.created++;
-      else report.updated++;
-    } catch (err) {
-      report.errors.push({
-        line: row.line,
-        message: err instanceof Error ? err.message : "Falha ao importar a linha.",
-      });
-    }
+    return report;
   }
 
+  const queue = shouldQueueImport(parsedRows.length);
+  const job = await createImportJobShell({
+    type: "ITEM_CONTROLE",
+    fileName: file.fileName,
+    userId: user.id,
+    status: queue ? "ENFILEIRADO" : "PROCESSANDO",
+  });
+
+  if (queue) {
+    enqueueImportProcessing({
+      jobId: job.id,
+      process: processRows,
+      revalidate: ["/importacao-exportacao", "/metas", "/"],
+    });
+    await recordAuditLog({
+      userId: user.id,
+      action: "CREATE",
+      entity: "ImportKpis",
+      entityId: user.id,
+      details: { queued: true, jobId: job.id, rows: parsedRows.length },
+    });
+    revalidatePath("/importacao-exportacao");
+    return { report: { created: 0, updated: 0, errors: [], jobId: job.id, queued: true } };
+  }
+
+  const report = await processRows();
+  await finalizeImportJob(job.id, report);
   await recordAuditLog({
     userId: user.id,
     action: "CREATE",
     entity: "ImportKpis",
     entityId: user.id,
-    details: { created: report.created, updated: report.updated, errorCount: report.errors.length },
+    details: { created: report.created, updated: report.updated, errorCount: report.errors.length, jobId: job.id },
   });
-  await prisma.importJob.create({ data: { type: "ITEM_CONTROLE", fileName: file.fileName, status: report.errors.length ? "CONCLUIDO_COM_ERROS" : "CONCLUIDO", created: report.created, updated: report.updated, errors: report.errors, completedAt: new Date(), requestedById: user.id } });
-
   revalidatePath("/importacao-exportacao");
   revalidatePath("/metas");
   revalidatePath("/");
@@ -275,6 +308,8 @@ export async function importMeasurementsCsv(
   if (!checkRateLimit("import", user.id, { limit: 5, windowMs: 60 * 1000 })) {
     return { error: "Muitas importações em pouco tempo. Aguarde um minuto e tente novamente." };
   }
+  const busy = await assertNoConcurrentImport(user.id);
+  if (busy) return { error: busy };
 
   let file: TabularFile;
   try {
@@ -286,34 +321,61 @@ export async function importMeasurementsCsv(
   const parsedRows = parseMeasurementImportRows(file.rows);
   if (parsedRows.length === 0) return { error: "Nenhuma linha encontrada no arquivo." };
 
-  const report: ImportReport = { created: 0, updated: 0, errors: [] };
-
-  for (const row of parsedRows) {
-    if (!row.ok) {
-      report.errors.push({ line: row.line, message: row.error });
-      continue;
+  async function processRows(): Promise<ImportReport> {
+    const report: ImportReport = { created: 0, updated: 0, errors: [] };
+    for (const row of parsedRows) {
+      if (!row.ok) {
+        report.errors.push({ line: row.line, message: row.error });
+        continue;
+      }
+      try {
+        const created = await importMeasurementRow(row.data, user);
+        if (created) report.created++;
+        else report.updated++;
+      } catch (err) {
+        report.errors.push({
+          line: row.line,
+          message: err instanceof Error ? err.message : "Falha ao importar a linha.",
+        });
+      }
     }
-    try {
-      const created = await importMeasurementRow(row.data, user);
-      if (created) report.created++;
-      else report.updated++;
-    } catch (err) {
-      report.errors.push({
-        line: row.line,
-        message: err instanceof Error ? err.message : "Falha ao importar a linha.",
-      });
-    }
+    return report;
   }
 
+  const queue = shouldQueueImport(parsedRows.length);
+  const job = await createImportJobShell({
+    type: "MEDICAO",
+    fileName: file.fileName,
+    userId: user.id,
+    status: queue ? "ENFILEIRADO" : "PROCESSANDO",
+  });
+
+  if (queue) {
+    enqueueImportProcessing({
+      jobId: job.id,
+      process: processRows,
+      revalidate: ["/importacao-exportacao", "/metas", "/"],
+    });
+    await recordAuditLog({
+      userId: user.id,
+      action: "CREATE",
+      entity: "ImportMeasurements",
+      entityId: user.id,
+      details: { queued: true, jobId: job.id, rows: parsedRows.length },
+    });
+    revalidatePath("/importacao-exportacao");
+    return { report: { created: 0, updated: 0, errors: [], jobId: job.id, queued: true } };
+  }
+
+  const report = await processRows();
+  await finalizeImportJob(job.id, report);
   await recordAuditLog({
     userId: user.id,
     action: "CREATE",
     entity: "ImportMeasurements",
     entityId: user.id,
-    details: { created: report.created, updated: report.updated, errorCount: report.errors.length },
+    details: { created: report.created, updated: report.updated, errorCount: report.errors.length, jobId: job.id },
   });
-  await prisma.importJob.create({ data: { type: "MEDICAO", fileName: file.fileName, status: report.errors.length ? "CONCLUIDO_COM_ERROS" : "CONCLUIDO", created: report.created, updated: report.updated, errors: report.errors, completedAt: new Date(), requestedById: user.id } });
-
   revalidatePath("/importacao-exportacao");
   revalidatePath("/metas");
   revalidatePath("/");

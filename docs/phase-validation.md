@@ -52,3 +52,10 @@ Use este arquivo junto com `roadmap-quattrus.md` e `functional-mapping.md`.
 2. Restore real deve ser validado em banco de destino controlado, não na base em uso.
 3. Agendamento de backup e retenção fora da máquina precisam ser configurados no host/infra.
 4. Testes end-to-end em navegador real ainda devem ser acrescentados como suíte permanente se o time quiser bloquear regressões visuais e fluxos longos via CI.
+
+## Nota M3–M4 (2026-10-01)
+
+Paridade shell/import/cálculo implementada na branch `feat/marco-m3-m4-paridade-shell`
+(ver `docs/mudancas/2026-10-01-fase-6-9-m3-m4.md`). A matriz executável de caça a bugs
+está em `docs/roadmap-debug-matriz-testes.md`. Smoke unitário: `parity-smoke.test.ts`.
+A validação “tudo ✅” de 2026-09-12 **não** substitui a execução dessa matriz.

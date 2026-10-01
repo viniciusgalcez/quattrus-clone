@@ -71,3 +71,10 @@ export function roundFormulaValue(value: number | null, decimalPlaces = 2) {
   const factor = 10 ** Math.max(0, Math.min(8, decimalPlaces));
   return Math.round(value * factor) / factor;
 }
+
+/** Clear PT-BR copy for formula edge cases shown in UI / exports. */
+export const FORMULA_REASON_LABEL: Record<NonNullable<FormulaResult["reason"]>, string> = {
+  NO_DATA: "Sem dado — faltam valores de origem para calcular.",
+  ZERO_DENOMINATOR: "Denominador zero — o quociente fica sem dado até o denominador ser diferente de zero.",
+  INVALID_FORMULA: "Fórmula inválida — revise pesos ou configuração do totalizador.",
+};

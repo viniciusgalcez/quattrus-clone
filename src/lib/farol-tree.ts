@@ -1,15 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { getDeviationPct, getKpiStatusFromThresholds, thresholdsForPeriod } from "@/lib/kpi";
 import { MONTH_LABELS, periodsOfYear, type FarolCell } from "@/lib/farol";
+import { buildBandPoint, type BandPoint } from "@/lib/band-chart";
 
-export type BandPoint = {
-  name: string;
-  meta: number | null;
-  realizado: number | null;
-  /** Invisible base of the stacked bar — recharts' way of drawing a floating range bar. */
-  faixaBase: number | null;
-  faixaAltura: number | null;
-};
+export type { BandPoint };
 
 export type FarolTreeNode = {
   kpiId: string;
@@ -112,36 +106,23 @@ export async function buildFarolTree(ownerIds: string[], year: number, visibleKp
       };
     });
 
-    // The green band is the tolerance zone around the goal (± yellowRange%,
-    // the same threshold that decides VERDE vs AMARELO) — an approximation of
-    // the real Quattrus "Faixa Verde" band, not a stored value of its own.
-    // In ABSOLUTE mode the stored lower/upper limits are the band.
+    // Same band builder as detalhe / multigráficos so Barras never invents a
+    // Meta line for goal===0 sem realizado.
     const bandData: BandPoint[] = cells.map((cell) => {
-      if (cell.goal === null) {
-        return { name: cell.monthLabel, meta: null, realizado: null, faixaBase: null, faixaAltura: null };
-      }
       const thresholds = thresholdsForPeriod(cell.period, kpi, kpi.thresholdValidities);
-      if (thresholds.thresholdMode === "ABSOLUTE" && thresholds.lowerLimit != null && thresholds.upperLimit != null) {
-        const lo = Math.min(thresholds.lowerLimit, thresholds.upperLimit);
-        const hi = Math.max(thresholds.lowerLimit, thresholds.upperLimit);
-        return {
-          name: cell.monthLabel,
-          meta: cell.goal,
-          realizado: cell.actual,
-          faixaBase: lo,
-          faixaAltura: hi - lo,
-        };
-      }
-      const tolerance = (cell.goal * thresholds.yellowRange) / 100;
-      const low = cell.goal - tolerance;
-      const high = cell.goal + tolerance;
-      return {
+      const absolute =
+        thresholds.thresholdMode === "ABSOLUTE" &&
+        thresholds.lowerLimit != null &&
+        thresholds.upperLimit != null
+          ? { lower: thresholds.lowerLimit, upper: thresholds.upperLimit }
+          : null;
+      return buildBandPoint({
         name: cell.monthLabel,
-        meta: cell.goal,
-        realizado: cell.actual,
-        faixaBase: low,
-        faixaAltura: high - low,
-      };
+        goal: cell.goal,
+        actual: cell.actual,
+        yellowRange: thresholds.yellowRange,
+        absoluteLimits: absolute,
+      });
     });
 
     byId.set(kpi.id, {

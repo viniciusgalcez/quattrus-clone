@@ -3,6 +3,7 @@ import { Download, FileSpreadsheet, UsersRound } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { currentPeriod, periodLabel } from "@/lib/kpi";
 import { ImportCsvForm } from "@/components/ImportCsvForm";
+import { ImportJobHistory } from "@/components/ImportJobHistory";
 import {
   importActionPlansCsv,
   importCompanyItemsCsv,
@@ -59,10 +60,7 @@ export default async function ImportacaoExportacaoPage() {
         </div>
       </div>
 
-      <div className="card overflow-hidden">
-        <div className="border-b border-[var(--color-border)] px-5 py-4"><h2 className="font-display text-[14px] font-bold text-[var(--color-ink-900)]">Histórico de importações</h2></div>
-        <div className="table-scroll"><table className="table-modern"><thead><tr><th>Arquivo</th><th>Tipo</th><th>Solicitado por</th><th>Status</th><th>Resultado</th><th>Concluído</th></tr></thead><tbody>{imports.length ? imports.map((job) => <tr key={job.id}><th scope="row">{job.fileName}</th><td>{job.type}</td><td>{job.requestedBy.name}</td><td>{job.status.replaceAll("_", " ")}</td><td>{job.created} criado(s), {job.updated} atualizado(s), {Array.isArray(job.errors) ? job.errors.length : 0} erro(s)</td><td>{job.completedAt?.toLocaleString("pt-BR") ?? "Em andamento"}</td></tr>) : <tr><td colSpan={6} className="py-8 text-center text-[var(--color-ink-500)]">Nenhuma importação registrada.</td></tr>}</tbody></table></div>
-      </div>
+      <ImportJobHistory jobs={imports} />
 
       <div className="card flex flex-col gap-4 p-5">
         <div className="flex items-center gap-2">

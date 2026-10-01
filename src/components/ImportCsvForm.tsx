@@ -34,22 +34,32 @@ export function ImportCsvForm({
 
       {state?.report && (
         <div className="flex flex-col gap-2 rounded-lg border border-[var(--color-border)] p-3">
-          <div className="flex items-center gap-2 text-[12.5px] font-medium text-[var(--color-ink-700)]">
-            <CheckCircle2 className="h-3.5 w-3.5 text-[var(--color-green-600)]" />
-            {state.report.created} criado(s), {state.report.updated} atualizado(s)
-            {state.report.errors.length > 0 && `, ${state.report.errors.length} com erro`}
-          </div>
-          {state.report.errors.length > 0 && (
-            <ul className="flex flex-col gap-1 text-[11.5px] text-[var(--color-red-600)]">
-              {state.report.errors.map((e, i) => (
-                <li key={i} className="flex items-start gap-1.5">
-                  <AlertTriangle className="mt-[1px] h-3 w-3 shrink-0" />
-                  <span>
-                    Linha {e.line}: {e.message}
-                  </span>
-                </li>
-              ))}
-            </ul>
+          {state.report.queued ? (
+            <div className="flex items-center gap-2 text-[12.5px] font-medium text-[var(--color-ink-700)]">
+              <CheckCircle2 className="h-3.5 w-3.5 text-[var(--color-brand-600)]" />
+              Importação enfileirada. Acompanhe o status e os erros por linha no histórico abaixo
+              {state.report.jobId ? ` (job ${state.report.jobId.slice(0, 8)}…)` : ""}.
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 text-[12.5px] font-medium text-[var(--color-ink-700)]">
+                <CheckCircle2 className="h-3.5 w-3.5 text-[var(--color-green-600)]" />
+                {state.report.created} criado(s), {state.report.updated} atualizado(s)
+                {state.report.errors.length > 0 && `, ${state.report.errors.length} com erro`}
+              </div>
+              {state.report.errors.length > 0 && (
+                <ul className="flex flex-col gap-1 text-[11.5px] text-[var(--color-red-600)]">
+                  {state.report.errors.map((e, i) => (
+                    <li key={i} className="flex items-start gap-1.5">
+                      <AlertTriangle className="mt-[1px] h-3 w-3 shrink-0" />
+                      <span>
+                        Linha {e.line}: {e.message}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           )}
         </div>
       )}

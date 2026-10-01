@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+﻿import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Prisma } from "@prisma/client";
 import {
   importActionPlansCsv,
@@ -32,7 +32,13 @@ vi.mock("@/lib/prisma", () => ({
     kpiMeasurementPeriod: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
     kpiThresholdValidity: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
     companySettings: { upsert: vi.fn() },
-    importJob: { create: vi.fn() },
+    importJob: { create: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
+  },
+}));
+
+vi.mock("next/server", () => ({
+  after: (fn: () => void | Promise<void>) => {
+    void fn();
   },
 }));
 
@@ -89,6 +95,8 @@ const thresholdCreate = vi.mocked(prisma.kpiThresholdValidity.create);
 const thresholdUpdate = vi.mocked(prisma.kpiThresholdValidity.update);
 const companySettingsUpsert = vi.mocked(prisma.companySettings.upsert);
 const importJobCreate = vi.mocked(prisma.importJob.create);
+const importJobFindFirst = vi.mocked(prisma.importJob.findFirst);
+const importJobUpdate = vi.mocked(prisma.importJob.update);
 
 const stub = <T,>(value: T) => value as never;
 
@@ -136,6 +144,8 @@ describe("importKpisCsv", () => {
     kpiCreate.mockResolvedValue(stub({ id: "new-kpi" }));
     kpiUpdate.mockResolvedValue(stub({ id: "kpi-1" }));
     importJobCreate.mockResolvedValue(stub({ id: "import-1" }));
+    importJobFindFirst.mockResolvedValue(null);
+    importJobUpdate.mockResolvedValue(stub({ id: "import-1" }));
   });
 
   it("creates a new item when the id column is blank", async () => {
@@ -339,6 +349,9 @@ describe("importMeasurementsCsv", () => {
     measurementFindUnique.mockResolvedValue(null);
     measurementUpsert.mockResolvedValue(stub({ id: "meas-1" }));
     getKpiStatusMock.mockReturnValue("VERDE");
+    importJobCreate.mockResolvedValue(stub({ id: "import-1" }));
+    importJobFindFirst.mockResolvedValue(null);
+    importJobUpdate.mockResolvedValue(stub({ id: "import-1" }));
   });
 
   it("creates a measurement for a period with no prior row", async () => {
@@ -416,6 +429,8 @@ describe("importThresholdsCsv", () => {
     thresholdUpdate.mockResolvedValue(stub({ id: "threshold-1" }));
     kpiUpdate.mockResolvedValue(stub({ id: "kpi-1" }));
     importJobCreate.mockResolvedValue(stub({ id: "import-1" }));
+    importJobFindFirst.mockResolvedValue(null);
+    importJobUpdate.mockResolvedValue(stub({ id: "import-1" }));
   });
 
   it("creates threshold validity rows and updates the current kpi ranges", async () => {
@@ -454,6 +469,8 @@ describe("importPeriodicitiesCsv", () => {
     measurementPeriodCreate.mockResolvedValue(stub({ id: "period-1" }));
     measurementPeriodUpdate.mockResolvedValue(stub({ id: "period-1" }));
     importJobCreate.mockResolvedValue(stub({ id: "import-1" }));
+    importJobFindFirst.mockResolvedValue(null);
+    importJobUpdate.mockResolvedValue(stub({ id: "import-1" }));
   });
 
   it("creates a KPI measurement-period validity window", async () => {
@@ -482,6 +499,8 @@ describe("importActionPlansCsv", () => {
     actionPlanFindUnique.mockResolvedValue(null);
     actionPlanUpsert.mockResolvedValue(stub({ id: "plan-1" }));
     importJobCreate.mockResolvedValue(stub({ id: "import-1" }));
+    importJobFindFirst.mockResolvedValue(null);
+    importJobUpdate.mockResolvedValue(stub({ id: "import-1" }));
   });
 
   it("creates an action plan from an imported measurement row", async () => {
@@ -519,6 +538,8 @@ describe("importCompanyItemsCsv", () => {
     requireUserMock.mockResolvedValue(stub({ id: "admin-1", username: "admin", role: "ADMIN" }));
     companySettingsUpsert.mockResolvedValue(stub({ id: "capricornio" }));
     importJobCreate.mockResolvedValue(stub({ id: "import-1" }));
+    importJobFindFirst.mockResolvedValue(null);
+    importJobUpdate.mockResolvedValue(stub({ id: "import-1" }));
   });
 
   it("updates the Capricornio company settings from a company item import", async () => {
@@ -541,3 +562,5 @@ describe("importCompanyItemsCsv", () => {
     expect(companySettingsUpsert).not.toHaveBeenCalled();
   });
 });
+
+

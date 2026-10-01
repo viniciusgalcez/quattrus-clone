@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { periodsOfYear, MONTH_LABELS } from "@/lib/farol";
-import type { BandPoint } from "@/lib/farol-tree";
+import { buildBandPoint, type BandPoint } from "@/lib/band-chart";
+import { thresholdsForPeriod } from "@/lib/kpi";
 
 export type MultigraficoKpi = {
   id: string;
@@ -65,6 +66,30 @@ export function clearMultiChartSlot(slots: unknown, position: number): MultiChar
   return normalizeMultiChartSlots(slots).filter((slot) => slot.position !== position);
 }
 
+/** Swap (or move into empty) two quadrant positions — DnD target. */
+export function swapMultiChartSlots(slots: unknown, fromPosition: number, toPosition: number): MultiChartSlot[] {
+  if (
+    !Number.isInteger(fromPosition) ||
+    !Number.isInteger(toPosition) ||
+    fromPosition < 0 ||
+    toPosition < 0 ||
+    fromPosition >= MAX_MULTICHART_SLOTS ||
+    toPosition >= MAX_MULTICHART_SLOTS
+  ) {
+    throw new Error("Posição inválida.");
+  }
+  if (fromPosition === toPosition) return normalizeMultiChartSlots(slots);
+
+  const current = normalizeMultiChartSlots(slots);
+  const from = current.find((slot) => slot.position === fromPosition);
+  const to = current.find((slot) => slot.position === toPosition);
+  const rest = current.filter((slot) => slot.position !== fromPosition && slot.position !== toPosition);
+  const next: MultiChartSlot[] = [...rest];
+  if (from) next.push({ position: toPosition, kpiId: from.kpiId });
+  if (to) next.push({ position: fromPosition, kpiId: to.kpiId });
+  return normalizeMultiChartSlots(next);
+}
+
 export function kpiIdsFromMultiChartSlots(slots: unknown): string[] {
   return normalizeMultiChartSlots(slots).map((slot) => slot.kpiId);
 }
@@ -87,6 +112,17 @@ export async function buildMultigraficoData(
     where: { id: { in: kpiIds }, ownerId: { in: ownerIds }, archivedAt: null },
     include: {
       owner: { select: { name: true } },
+      thresholdValidities: {
+        select: {
+          startPeriod: true,
+          endPeriod: true,
+          yellowRange: true,
+          redRange: true,
+          thresholdMode: true,
+          upperLimit: true,
+          lowerLimit: true,
+        },
+      },
       measurements: {
         where: { period: { gte: periods[0], lte: periods[11] } },
         select: { period: true, goal: true, actual: true },
@@ -104,11 +140,28 @@ export async function buildMultigraficoData(
       const byPeriod = new Map(kpi.measurements.map((m) => [m.period, m]));
       const bandData: BandPoint[] = periods.map((period, i) => {
         const m = byPeriod.get(period);
-        if (!m) return { name: MONTH_LABELS[i], meta: null, realizado: null, faixaBase: null, faixaAltura: null };
-        const tolerance = (m.goal * kpi.yellowRange) / 100;
-        const low = m.goal - tolerance;
-        const high = m.goal + tolerance;
-        return { name: MONTH_LABELS[i], meta: m.goal, realizado: m.actual, faixaBase: low, faixaAltura: high - low };
+        if (!m) {
+          return buildBandPoint({
+            name: MONTH_LABELS[i],
+            goal: null,
+            actual: null,
+            yellowRange: kpi.yellowRange,
+          });
+        }
+        const thresholds = thresholdsForPeriod(period, kpi, kpi.thresholdValidities);
+        const absolute =
+          thresholds.thresholdMode === "ABSOLUTE" &&
+          thresholds.lowerLimit != null &&
+          thresholds.upperLimit != null
+            ? { lower: thresholds.lowerLimit, upper: thresholds.upperLimit }
+            : null;
+        return buildBandPoint({
+          name: MONTH_LABELS[i],
+          goal: m.goal,
+          actual: m.actual,
+          yellowRange: thresholds.yellowRange,
+          absoluteLimits: absolute,
+        });
       });
 
       return {

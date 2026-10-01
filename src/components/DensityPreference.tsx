@@ -21,8 +21,8 @@ export function DensityPreference({ value }: { value: string }) {
           setDensity(event.currentTarget.value === "compact" ? "compact" : "comfortable");
         }}
       >
-        <option value="comfortable">Confortável · mais respiro entre os dados</option>
-        <option value="compact">Compacta · mais informações na mesma tela</option>
+        <option value="comfortable">Expandido · mais respiro entre os dados</option>
+        <option value="compact">Compacto · mais informações na mesma tela</option>
       </select>
     </label>
   );

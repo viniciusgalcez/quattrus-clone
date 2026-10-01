@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser, ForbiddenError } from "@/lib/authz";
 import { exportableOwnerIds } from "@/lib/hierarchy";
 import { recordAuditLog } from "@/lib/audit";
-import { clearMultiChartSlot, setMultiChartSlot } from "@/lib/multigraficos";
+import { clearMultiChartSlot, setMultiChartSlot, swapMultiChartSlots } from "@/lib/multigraficos";
 
 function requiredText(formData: FormData, key: string, max = 80): string {
   const value = formData.get(key);
@@ -125,6 +125,41 @@ export async function clearMultiChartSlotAction(formData: FormData): Promise<voi
     redirectTo = `/multigraficos?tab=${tab.id}`;
   } catch (error) {
     console.error("[multigraficos] clearMultiChartSlotAction failed", error);
+    return;
+  }
+  redirect(redirectTo);
+}
+
+export async function swapMultiChartSlotsAction(formData: FormData): Promise<void> {
+  let redirectTo: string | undefined;
+  try {
+    const user = await requireUser("dashboard");
+    const tabId = requiredText(formData, "tabId", 80);
+    const fromPosition = Number(formData.get("fromPosition"));
+    const toPosition = Number(formData.get("toPosition"));
+    if (!Number.isInteger(fromPosition) || !Number.isInteger(toPosition)) {
+      throw new ForbiddenError("Posição inválida.");
+    }
+    const tab = await assertOwnedTab(tabId, user.id);
+    const slots = swapMultiChartSlots(tab.slots, fromPosition, toPosition);
+
+    await prisma.multiChartTab.update({
+      where: { id: tab.id },
+      data: { slots },
+    });
+
+    await recordAuditLog({
+      userId: user.id,
+      action: "UPDATE",
+      entity: "MultiChartTab",
+      entityId: tab.id,
+      details: { fromPosition, toPosition },
+    });
+
+    revalidatePath("/multigraficos");
+    redirectTo = `/multigraficos?tab=${tab.id}`;
+  } catch (error) {
+    console.error("[multigraficos] swapMultiChartSlotsAction failed", error);
     return;
   }
   redirect(redirectTo);

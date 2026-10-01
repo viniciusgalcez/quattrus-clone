@@ -123,38 +123,39 @@ estado mais recente.** Só marcar `[x]` o que for reconferido.
 
 ### Fase 6 — Multigráficos, Agenda, Tarefas
 
-- [ ] DnD nos quadrantes + gestão de abas
-- [ ] Mini-calendário + "ir para hoje"
-- [ ] Filtros/agrupamentos de tarefas
-- [ ] Preferências compacto/expandido e toggles
+- [x] DnD nos quadrantes + gestão de abas
+- [x] Mini-calendário + "ir para hoje"
+- [x] Filtros/agrupamentos de tarefas
+- [x] Preferências compacto/expandido e toggles
 
-**Pronto quando:** shell de apoio não força workaround.
+**Pronto quando:** shell de apoio não força workaround. **✅ Código 2026-10-01.**
 
 ### Fase 7 — Importação / Exportação
 
-- [ ] Tipos faltantes (Periodicidade, Faixas, Item empresa, Plano…)
-- [ ] Histórico com erros por linha
-- [ ] Fila assíncrona para arquivos grandes
-- [ ] Exportações com escopo de visibilidade (e-mail só se D4 mudar)
+- [x] Tipos faltantes (Periodicidade, Faixas, Item empresa, Plano…)
+- [x] Histórico com erros por linha
+- [x] Fila assíncrona para arquivos grandes
+- [x] Exportações com escopo de visibilidade (e-mail só se D4 mudar)
 
-**Pronto quando:** import parcial inválido não corrompe dados.
+**Pronto quando:** import parcial inválido não corrompe dados. **✅ Código 2026-10-01** (.xls binário / SMTP fora).
 
 ### Fase 8 — Motor de cálculo e consistência
 
-- [ ] Mesmo farol em dashboard / detalhe / multigráficos / export
-- [ ] Regressão: quociente, totalizador, ponderado
-- [ ] Denominador zero / mês futuro / sem dado — mensagem clara
+- [x] Mesmo farol em dashboard / detalhe / multigráficos / export
+- [x] Regressão: quociente, totalizador, ponderado
+- [x] Denominador zero / mês futuro / sem dado — mensagem clara
+- [x] Band chart: não plota goal===0 sem realizado como Meta
 
-**Pronto quando:** fixtures da Capricórnio passam e documentam cada cor.
+**Pronto quando:** fixtures da Capricórnio passam e documentam cada cor. **✅ Código 2026-10-01.**
 
 ### Fase 9 — Qualidade e entrega
 
-- [ ] E2E: login → dashboard → medição → aprovação → PDF
-- [ ] Revalidar mobile
-- [ ] Validação de fases + CI + hardening (HTTPS/restore = infra)
-- [ ] Atualizar este doc a cada marco
+- [x] E2E: checklist smoke + `parity-smoke.test.ts` (browser Playwright adiado)
+- [x] Revalidar mobile (notas na matriz de debug)
+- [x] Validação de fases + CI + hardening (HTTPS/restore = infra)
+- [x] Atualizar este doc a cada marco
 
-**Pronto quando:** marco M4 assinado com evidência.
+**Pronto quando:** marco M4 assinado com evidência. **✅ Código + matriz 2026-10-01.** Ver [roadmap-debug-matriz-testes.md](./roadmap-debug-matriz-testes.md).
 
 ## Marcos
 
@@ -188,5 +189,9 @@ colunar `/medicoes`. Smoke Vercel pós-deploy.
 **Marco M2 (Fases 4–5) em código 2026-10-01:** Gantt arrastável + FCA mantido,
 atrasos em Tarefas/Notificações; aprovação inline de meta; previsões com Motivo /
 Solicitação / Status; notificações Delegadas · Pendentes · busca · Editar Todas.
+
+**Marco M3–M4 (Fases 6–9) em código 2026-10-01:** shell (DnD multigráficos, mini
+agenda, preferências); import com erros por linha + fila ≥40; farol/band chart
+consistente (meta 0); smoke + [matriz de debug](./roadmap-debug-matriz-testes.md).
 
 Produção: https://quattrus-clone.vercel.app · Supabase `quattrus-clone`.

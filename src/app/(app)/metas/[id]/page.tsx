@@ -7,7 +7,7 @@ import { assertPageModule } from "@/lib/module-access";
 import { currentPeriod, getKpiStatus, periodLabel, STATUS_BADGE_CLASS, STATUS_LABEL, STATUS_RAIL_CLASS } from "@/lib/kpi";
 import { canView } from "@/lib/hierarchy";
 import { KpiBandChart } from "@/components/KpiBandChart";
-import type { BandPoint } from "@/lib/farol-tree";
+import { buildBandPoint } from "@/lib/band-chart";
 import { EmptyState } from "@/components/EmptyState";
 import { DuplicateKpiForm } from "@/components/DuplicateKpiForm";
 import { DelegacaoItemForm } from "@/components/DelegacaoItemForm";
@@ -71,16 +71,14 @@ export default async function KpiDetailPage({
       ])
     : [[], []];
 
-  const bandData: BandPoint[] = kpi.measurements.slice(-12).map((m) => {
-    const tolerance = (m.goal * kpi.yellowRange) / 100;
-    return {
+  const bandData = kpi.measurements.slice(-12).map((m) =>
+    buildBandPoint({
       name: periodLabel(m.period),
-      meta: m.goal,
-      realizado: m.actual,
-      faixaBase: m.goal - tolerance,
-      faixaAltura: tolerance * 2,
-    };
-  });
+      goal: m.goal,
+      actual: m.actual,
+      yellowRange: kpi.yellowRange,
+    })
+  );
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 sm:gap-5">

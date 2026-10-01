@@ -5,6 +5,7 @@ import {
   kpiIdsFromMultiChartSlots,
   normalizeMultiChartSlots,
   setMultiChartSlot,
+  swapMultiChartSlots,
 } from "./multigraficos";
 import { prisma } from "@/lib/prisma";
 
@@ -91,6 +92,26 @@ describe("multi chart saved slots", () => {
     expect(kpiIdsFromMultiChartSlots([{ position: 2, kpiId: "c" }, { position: 0, kpiId: "a" }])).toEqual([
       "a",
       "c",
+    ]);
+  });
+
+  it("swaps occupied quadrants and moves into empty slots", () => {
+    expect(
+      swapMultiChartSlots(
+        [
+          { position: 0, kpiId: "kpi-1" },
+          { position: 1, kpiId: "kpi-2" },
+        ],
+        0,
+        1
+      )
+    ).toEqual([
+      { position: 0, kpiId: "kpi-2" },
+      { position: 1, kpiId: "kpi-1" },
+    ]);
+
+    expect(swapMultiChartSlots([{ position: 0, kpiId: "kpi-1" }], 0, 3)).toEqual([
+      { position: 3, kpiId: "kpi-1" },
     ]);
   });
 });
