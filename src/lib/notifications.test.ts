@@ -53,6 +53,7 @@ describe("notification display groups", () => {
   it("classifies approvals as pending work", () => {
     expect(notificationGroup({ type: "GOAL_PENDING" })).toBe("PENDENCIAS");
     expect(notificationGroup({ type: "FORECAST_PENDING" })).toBe("PENDENCIAS");
+    expect(notificationGroup({ type: "STEP_OVERDUE" })).toBe("PENDENCIAS");
   });
 
   it("classifies informational messages as updates", () => {

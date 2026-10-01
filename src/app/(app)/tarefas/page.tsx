@@ -61,8 +61,22 @@ export default async function TarefasPage({ searchParams }: { searchParams: Prom
   const ownerIds = user.role === "ADMIN" ? [] : await exportableOwnerIds(user);
   const actionPlanWhere: Prisma.ActionPlanWhereInput =
     user.role === "ADMIN" ? { status: "ABERTO" } : { status: "ABERTO", kpi: { ownerId: { in: ownerIds } } };
+  const overdueStepWhere: Prisma.ActionPlanStepWhereInput = {
+    status: "ABERTO",
+    dueDate: { lt: today },
+    actionPlan: user.role === "ADMIN" ? {} : { kpi: { ownerId: { in: ownerIds } } },
+    ...(selectedAssignee ? { responsibleId: selectedAssignee } : {}),
+    ...(query
+      ? {
+          OR: [
+            { name: { contains: query, mode: "insensitive" } },
+            { actionPlan: { kpi: { name: { contains: query, mode: "insensitive" } } } },
+          ],
+        }
+      : {}),
+  };
 
-  const [tasks, users, actionPlans] = await Promise.all([
+  const [tasks, users, actionPlans, overdueSteps] = await Promise.all([
     prisma.task.findMany({
       where: { AND: [accessWhere, filterWhere] },
       include: {
@@ -79,6 +93,22 @@ export default async function TarefasPage({ searchParams }: { searchParams: Prom
       orderBy: { updatedAt: "desc" },
       take: 50,
     }),
+    selectedStatus === "CONCLUIDA" || selectedOrigin === "avulsa"
+      ? Promise.resolve([])
+      : prisma.actionPlanStep.findMany({
+          where: overdueStepWhere,
+          include: {
+            responsible: { select: { name: true } },
+            actionPlan: {
+              select: {
+                measurementId: true,
+                kpi: { select: { name: true } },
+              },
+            },
+          },
+          orderBy: { dueDate: "asc" },
+          take: 40,
+        }),
   ]);
   const groupedTasks = groupTasksForDisplay(tasks);
 
@@ -87,7 +117,7 @@ export default async function TarefasPage({ searchParams }: { searchParams: Prom
       <div>
         <h1 className="page-title">Tarefas</h1>
         <p className="page-subtitle">
-          Formato 5W2H — o quê, por quê, como/onde, quem, quando e status de cada tarefa avulsa.
+          Formato 5W2H — o quê, por quê, como/onde, quem, quando e status de cada tarefa avulsa. Etapas atrasadas do Gantt também aparecem aqui.
         </p>
       </div>
 
@@ -106,6 +136,43 @@ export default async function TarefasPage({ searchParams }: { searchParams: Prom
         <label className="flex flex-col gap-1.5"><span className="field-label">Origem</span><select name="origem" defaultValue={selectedOrigin} className="input-field"><option value="">Todas</option><option value="plano">Plano de ação</option><option value="avulsa">Tarefa adicional</option></select></label>
         <div className="flex items-end gap-2"><button type="submit" className="btn btn-primary w-full md:w-auto">Filtrar</button>{(query || selectedStatus || selectedAssignee || selectedOrigin) && <Link href="/tarefas" className="btn w-full md:w-auto">Limpar</Link>}</div>
       </form>
+
+      {overdueSteps.length > 0 && (
+        <section className="card overflow-hidden border-l-4 border-l-[var(--color-red-600)]">
+          <div className="card-header">
+            <span>Etapas atrasadas do plano · {overdueSteps.length}</span>
+          </div>
+          <div className="table-scroll">
+            <table className="table-modern">
+              <caption className="sr-only">Etapas de plano de ação com prazo vencido.</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Etapa</th>
+                  <th scope="col">Indicador</th>
+                  <th scope="col">Quem</th>
+                  <th scope="col">Venceu em</th>
+                  <th scope="col" className="text-right">Abrir</th>
+                </tr>
+              </thead>
+              <tbody>
+                {overdueSteps.map((step) => (
+                  <tr key={step.id}>
+                    <th scope="row">{step.name}</th>
+                    <td>{step.actionPlan.kpi.name}</td>
+                    <td>{step.responsible?.name ?? "—"}</td>
+                    <td>{step.dueDate ? df.format(step.dueDate) : "—"}</td>
+                    <td className="text-right">
+                      <Link href={`/fca/${step.actionPlan.measurementId}`} className="text-[var(--color-brand-700)] hover:underline">
+                        FCA / Gantt
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       <div className="card overflow-hidden">
         <div className="card-header">

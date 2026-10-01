@@ -75,13 +75,13 @@ export default async function NotificationsPage({
         <div>
           <div className="dashboard-kicker">Central de comunicação</div>
           <h1 className="page-title mt-1 text-[25px]">Notificações</h1>
-          <p className="page-subtitle mt-1">Acompanhe aprovações, pendências, atualizações e delegações ativas.</p>
+          <p className="page-subtitle mt-1">Delegadas, Pendentes, busca e Editar Todas — acompanhe aprovações e prazos do plano.</p>
         </div>
         {unreadCount > 0 && (
           <form action={markAllNotificationsRead} noValidate>
             <button type="submit" className="btn btn-primary">
               <CheckCheck className="h-4 w-4" />
-              Editar todas (marcar como lidas)
+              Editar Todas
             </button>
           </form>
         )}
@@ -90,7 +90,7 @@ export default async function NotificationsPage({
       {delegations.length > 0 && (
         <section className="card overflow-hidden">
           <div className="card-header">
-            <span>Ações delegadas · {delegations.length}</span>
+            <span>Delegadas · {delegations.length}</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-[12px]">

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { approveAllPendingGoals, approveGoal } from "./goal-approval";
+import { approveAllPendingGoals, approveGoal, approveGoalWithValue } from "./goal-approval";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/authz";
 import { canView, exportableOwnerIds } from "@/lib/hierarchy";
@@ -28,7 +28,7 @@ describe("approveGoal", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     requireUserMock.mockResolvedValue(stub({ id: "boss-1", role: "GESTOR" }));
-    measurementFindUnique.mockResolvedValue(stub({ id: "meas-1", kpi: { ownerId: "report-1" } }));
+    measurementFindUnique.mockResolvedValue(stub({ id: "meas-1", goal: 100, kpi: { ownerId: "report-1" } }));
     canViewMock.mockResolvedValue(true);
     exportableOwnerIdsMock.mockResolvedValue(["boss-1", "report-1"]);
   });
@@ -62,19 +62,59 @@ describe("approveGoal", () => {
   });
 });
 
+describe("approveGoalWithValue", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    requireUserMock.mockResolvedValue(stub({ id: "boss-1", role: "GESTOR" }));
+    measurementFindUnique.mockResolvedValue(stub({ id: "meas-1", goal: 100, kpi: { ownerId: "report-1" } }));
+    canViewMock.mockResolvedValue(true);
+  });
+
+  it("approves and overwrites the goal from the inline cell", async () => {
+    await expect(approveGoalWithValue("meas-1", "120,5")).resolves.toEqual({ ok: true });
+    expect(measurementUpdate).toHaveBeenCalledWith({
+      where: { id: "meas-1" },
+      data: {
+        goal: 120.5,
+        goalApprovalStatus: "APROVADA",
+        goalApprovedById: "boss-1",
+        goalApprovedAt: expect.any(Date),
+      },
+    });
+  });
+
+  it("keeps the existing goal when the cell is left blank", async () => {
+    await expect(approveGoalWithValue("meas-1", "  ")).resolves.toEqual({ ok: true });
+    expect(measurementUpdate).toHaveBeenCalledWith({
+      where: { id: "meas-1" },
+      data: expect.objectContaining({ goal: 100, goalApprovalStatus: "APROVADA" }),
+    });
+  });
+
+  it("rejects non-numeric inline values", async () => {
+    const result = await approveGoalWithValue("meas-1", "abc");
+    expect(result.ok).toBe(false);
+    expect(measurementUpdate).not.toHaveBeenCalled();
+  });
+});
+
 describe("approveAllPendingGoals", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     requireUserMock.mockResolvedValue(stub({ id: "boss-1", role: "GESTOR" }));
     exportableOwnerIdsMock.mockResolvedValue(["boss-1", "report-1"]);
     measurementFindMany.mockResolvedValue(stub([{ id: "meas-1" }, { id: "meas-2" }]));
-    measurementFindUnique.mockResolvedValue(stub({ id: "meas-1", kpi: { ownerId: "report-1" } }));
+    measurementFindUnique.mockResolvedValue(stub({ id: "meas-1", goal: 100, kpi: { ownerId: "report-1" } }));
     canViewMock.mockResolvedValue(true);
   });
 
   it("only batches pending goals from the manager's team", async () => {
     await expect(approveAllPendingGoals()).resolves.toEqual({ ok: true });
-    expect(measurementFindMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ kpi: { ownerId: { in: ["report-1"] }, archivedAt: null } }) }));
+    expect(measurementFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ kpi: { ownerId: { in: ["report-1"] }, archivedAt: null } }),
+      }),
+    );
     expect(measurementUpdate).toHaveBeenCalledTimes(2);
   });
 });

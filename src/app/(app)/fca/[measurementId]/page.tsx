@@ -60,18 +60,37 @@ export default async function FCAPage({
         <div className="flex items-center gap-2">{plan && <PrintActionPlanButton />}{plan?.status === "CONCLUIDO" && <span className="badge badge-verde"><CheckCircle2 className="h-3 w-3" /> Concluído</span>}</div>
       </div>
 
-      <FCAForm
-        measurement={{
-          id: measurement.id,
-          goal: measurement.goal,
-          actual: measurement.actual,
-          metricUnit: measurement.kpi.metricUnit,
-        }}
-        plan={plan}
-        deviation={deviation}
-      />
-      {plan && <ActionPlanGantt actionPlanId={plan.id} steps={plan.steps} candidates={candidates} />}
-      {plan && <div className="card p-4"><div className="card-header -mx-4 -mt-4 mb-4">Anexos do plano</div><AttachmentUploader entityType="actionPlan" entityId={plan.id} initial={plan.attachments} /></div>}
+      <aside className="card border-l-4 border-l-[var(--color-brand-500)] p-4 text-[12.5px] leading-relaxed text-[var(--color-ink-600)] print:hidden">
+        <p className="font-semibold text-[var(--color-ink-900)]">Dois modos, um plano</p>
+        <ul className="mt-2 list-disc space-y-1 pl-4">
+          <li>
+            <strong>FCA</strong> (abaixo) — causa-raiz automática quando o mês fecha fora da meta (5 Porquês + 5W2H). Use para entender o desvio.
+          </li>
+          <li>
+            <strong>Etapas / Gantt</strong> — visão Quattrus de quem faz o quê e quando. Arraste as barras; anexos e impressão ficam neste mesmo plano.
+          </li>
+        </ul>
+      </aside>
+
+      <div className="print-action-plan space-y-5">
+        <FCAForm
+          measurement={{
+            id: measurement.id,
+            goal: measurement.goal,
+            actual: measurement.actual,
+            metricUnit: measurement.kpi.metricUnit,
+          }}
+          plan={plan}
+          deviation={deviation}
+        />
+        {plan && <ActionPlanGantt actionPlanId={plan.id} steps={plan.steps} candidates={candidates} />}
+        {plan && (
+          <div className="card p-4 print:break-inside-avoid">
+            <div className="card-header -mx-4 -mt-4 mb-4">Anexos do plano</div>
+            <AttachmentUploader entityType="actionPlan" entityId={plan.id} initial={plan.attachments} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

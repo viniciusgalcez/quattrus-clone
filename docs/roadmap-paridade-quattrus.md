@@ -106,20 +106,20 @@ estado mais recente.** Só marcar `[x]` o que for reconferido.
 
 ### Fase 4 — Plano de ação (Gantt) sem matar o FCA
 
-- [ ] Etapas + Gantt (visão Quattrus)
-- [ ] Manter FCA automático fora da meta
-- [ ] Anexos e impressão/exportação
-- [ ] Atrasos em Tarefas / Notificações
+- [x] Etapas + Gantt (visão Quattrus)
+- [x] Manter FCA automático fora da meta
+- [x] Anexos e impressão/exportação
+- [x] Atrasos em Tarefas / Notificações
 
-**Pronto quando:** os dois modos existem e a UI explica quando usar cada um.
+**Pronto quando:** os dois modos existem e a UI explica quando usar cada um. **✅ Código 2026-10-01.**
 
 ### Fase 5 — Aprovações e notificações
 
-- [ ] Edição inline de meta
-- [ ] Previsões: Motivo / Solicitação / Status
-- [ ] Notificações: Delegadas · Pendentes · busca · Editar Todas
+- [x] Edição inline de meta
+- [x] Previsões: Motivo / Solicitação / Status
+- [x] Notificações: Delegadas · Pendentes · busca · Editar Todas
 
-**Pronto quando:** gestor resolve a fila sem tela extra desnecessária.
+**Pronto quando:** gestor resolve a fila sem tela extra desnecessária. **✅ Código 2026-10-01.**
 
 ### Fase 6 — Multigráficos, Agenda, Tarefas
 
@@ -184,5 +184,9 @@ estado mais recente.** Só marcar `[x]` o que for reconferido.
 Criado em 2026-09-30. **Marco M1 (Fases 0–3) implementado em 2026-10-01:**
 Fase 2 mergeada no checkpoint; Fase 1 faixa absoluta + vigência; Fase 3 grade
 colunar `/medicoes`. Smoke Vercel pós-deploy.
+
+**Marco M2 (Fases 4–5) em código 2026-10-01:** Gantt arrastável + FCA mantido,
+atrasos em Tarefas/Notificações; aprovação inline de meta; previsões com Motivo /
+Solicitação / Status; notificações Delegadas · Pendentes · busca · Editar Todas.
 
 Produção: https://quattrus-clone.vercel.app · Supabase `quattrus-clone`.

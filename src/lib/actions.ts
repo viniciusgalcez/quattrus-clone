@@ -1027,6 +1027,57 @@ export async function reopenActionPlan(actionPlanId: string): Promise<void> {
   }
 }
 
+async function revalidateActionPlanSurfaces(actionPlanId: string) {
+  const plan = await prisma.actionPlan.findUnique({
+    where: { id: actionPlanId },
+    select: { measurementId: true, kpiId: true },
+  });
+  if (plan?.measurementId) revalidatePath(`/fca/${plan.measurementId}`);
+  if (plan?.kpiId) revalidatePath(`/metas/${plan.kpiId}/planos-de-acao`);
+  revalidatePath("/tarefas");
+  revalidatePath("/notificacoes");
+}
+
+async function notifyOverdueActionPlanStep(input: {
+  stepId: string;
+  stepName: string;
+  status: string;
+  dueDate: Date | null;
+  responsibleId: string | null;
+  actionPlanId: string;
+  actorId: string;
+}) {
+  if (input.status === "CONCLUIDO" || !input.dueDate) return;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (input.dueDate.getTime() >= today.getTime()) return;
+
+  const plan = await prisma.actionPlan.findUnique({
+    where: { id: input.actionPlanId },
+    select: {
+      measurementId: true,
+      kpiId: true,
+      kpi: { select: { name: true } },
+    },
+  });
+  if (!plan) return;
+
+  const recipients = [...new Set([input.responsibleId, input.actorId].filter(Boolean))] as string[];
+  if (!recipients.length) return;
+
+  const dueLabel = input.dueDate.toLocaleDateString("pt-BR");
+  await notifyUsers(recipients, {
+    type: "STEP_OVERDUE",
+    title: "Etapa do plano atrasada",
+    body: `A etapa "${input.stepName}" de ${plan.kpi.name} venceu em ${dueLabel}.`,
+    href: `/fca/${plan.measurementId}`,
+    relatedKpiId: plan.kpiId,
+    fromUserId: input.actorId,
+    originLabel: "Plano de ação",
+    dueAt: input.dueDate,
+  });
+}
+
 export async function createActionPlanStep(formData: FormData): Promise<void> {
   try {
     const user = await requireUser("tasks");
@@ -1041,8 +1092,8 @@ export async function createActionPlanStep(formData: FormData): Promise<void> {
         parentId: data.parentId || null,
         name: data.name,
         responsibleId: data.responsibleId || null,
-        startDate: data.startDate ? new Date(data.startDate) : null,
-        dueDate: data.dueDate ? new Date(data.dueDate) : null,
+        startDate: data.startDate ? new Date(`${data.startDate}T12:00:00`) : null,
+        dueDate: data.dueDate ? new Date(`${data.dueDate}T12:00:00`) : null,
         value: data.value,
       },
     });
@@ -1053,7 +1104,16 @@ export async function createActionPlanStep(formData: FormData): Promise<void> {
       entityId: step.id,
       details: { actionPlanId: data.actionPlanId, name: data.name, responsibleId: data.responsibleId || null },
     });
-    revalidatePath(`/fca/${(await prisma.actionPlan.findUnique({ where: { id: data.actionPlanId }, select: { measurementId: true } }))?.measurementId ?? ""}`);
+    await notifyOverdueActionPlanStep({
+      stepId: step.id,
+      stepName: step.name,
+      status: step.status,
+      dueDate: step.dueDate,
+      responsibleId: step.responsibleId,
+      actionPlanId: step.actionPlanId,
+      actorId: user.id,
+    });
+    await revalidateActionPlanSurfaces(data.actionPlanId);
   } catch (error) {
     handleActionError(error);
   }
@@ -1068,21 +1128,84 @@ export async function updateActionPlanStep(stepId: string, formData: FormData): 
     const parsed = updateActionPlanStepSchema.safeParse(Object.fromEntries(formData));
     if (!parsed.success) throw new Error(Object.values(fieldErrorsFrom(parsed.error))[0] ?? "Etapa inválida.");
     const data = parsed.data;
-    await prisma.actionPlanStep.update({
+    const updated = await prisma.actionPlanStep.update({
       where: { id: stepId },
       data: {
         parentId: data.parentId || null,
         name: data.name,
         responsibleId: data.responsibleId || null,
-        startDate: data.startDate ? new Date(data.startDate) : null,
-        dueDate: data.dueDate ? new Date(data.dueDate) : null,
+        startDate: data.startDate ? new Date(`${data.startDate}T12:00:00`) : null,
+        dueDate: data.dueDate ? new Date(`${data.dueDate}T12:00:00`) : null,
         value: data.value,
         status: data.status,
       },
     });
     await recordAuditLog({ userId: user.id, action: "UPDATE", entity: "ActionPlanStep", entityId: stepId, details: data });
+    await notifyOverdueActionPlanStep({
+      stepId: updated.id,
+      stepName: updated.name,
+      status: updated.status,
+      dueDate: updated.dueDate,
+      responsibleId: updated.responsibleId,
+      actionPlanId: updated.actionPlanId,
+      actorId: user.id,
+    });
+    await revalidateActionPlanSurfaces(step.actionPlanId);
   } catch (error) {
     handleActionError(error);
+  }
+}
+
+/** Drag/drop Gantt: update only the month span dates without touching other fields. */
+export async function updateActionPlanStepDates(
+  stepId: string,
+  startDate: string,
+  dueDate: string,
+): Promise<ActionResult> {
+  try {
+    const user = await requireUser("tasks");
+    const step = await prisma.actionPlanStep.findUnique({
+      where: { id: stepId },
+      select: { actionPlanId: true, name: true, status: true, responsibleId: true },
+    });
+    if (!step) throw new ForbiddenError("Etapa não encontrada.");
+    await assertActionPlanEditable(step.actionPlanId, user);
+
+    const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRe.test(startDate) || !dateRe.test(dueDate)) {
+      return { ok: false, error: "Prazo inválido." };
+    }
+    if (new Date(`${dueDate}T12:00:00`) < new Date(`${startDate}T12:00:00`)) {
+      return { ok: false, error: "O término não pode ser antes do início." };
+    }
+
+    const updated = await prisma.actionPlanStep.update({
+      where: { id: stepId },
+      data: {
+        startDate: new Date(`${startDate}T12:00:00`),
+        dueDate: new Date(`${dueDate}T12:00:00`),
+      },
+    });
+    await recordAuditLog({
+      userId: user.id,
+      action: "UPDATE",
+      entity: "ActionPlanStep",
+      entityId: stepId,
+      details: { startDate, dueDate, via: "gantt-drag" },
+    });
+    await notifyOverdueActionPlanStep({
+      stepId: updated.id,
+      stepName: updated.name,
+      status: updated.status,
+      dueDate: updated.dueDate,
+      responsibleId: updated.responsibleId,
+      actionPlanId: updated.actionPlanId,
+      actorId: user.id,
+    });
+    await revalidateActionPlanSurfaces(step.actionPlanId);
+    return { ok: true };
+  } catch (error) {
+    return handleActionError(error);
   }
 }
 
@@ -1094,6 +1217,7 @@ export async function deleteActionPlanStep(stepId: string): Promise<void> {
     await assertActionPlanEditable(step.actionPlanId, user);
     await prisma.actionPlanStep.delete({ where: { id: stepId } });
     await recordAuditLog({ userId: user.id, action: "DELETE", entity: "ActionPlanStep", entityId: stepId, details: { actionPlanId: step.actionPlanId } });
+    await revalidateActionPlanSurfaces(step.actionPlanId);
   } catch (error) {
     handleActionError(error);
   }

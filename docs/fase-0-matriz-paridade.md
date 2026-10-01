@@ -21,7 +21,7 @@ Espelho Obsidian: `Projetos/Gestiona/Fase-0-Matriz-Paridade.md`.
 | G02 | Multiempresa no login | Fora | Single-tenant Capricórnio | — |
 | G03 | Shell módulos principais | Parcial | Rotas em `src/app/(app)/` | 6 |
 | G04 | Quattrinha / Academy / cronômetro / idioma | Fora | Sem necessidade de negócio | — |
-| G05 | Notificações Delegadas / Pendentes | Parcial | `/notificacoes` | 5 |
+| G05 | Notificações Delegadas / Pendentes | Igual* | `/notificacoes` Delegadas · Pendentes · busca · Editar Todas | — / 9 |
 | G06 | Grid Meus itens (P, C, 12 meses, Valor, hierarquia) | Igual* | `FarolTreeGrid` P/C/Valor; *smoke deploy | — / 9 |
 | G07 | Sub-abas Auxiliares / Delegados / Vermelhos | Igual* | `/farol?aba=` + `farol-tabs.ts` | — / 9 |
 | G08 | Menu célula: Editar / Pareto / Barras | Igual* | `KpiCellMenu` | — / 9 |
@@ -33,10 +33,10 @@ Espelho Obsidian: `Projetos/Gestiona/Fase-0-Matriz-Paridade.md`.
 | G14 | Fórmula / quociente / totalizador / vigências | Igual* | Schema + abas | 8 |
 | G15 | Medições anuais grade completa | Igual* | `/medicoes` grade colunar item×ano + period lock | — / 9 |
 | G16 | Period lock | Extra | Existe | — |
-| G17 | Gantt arrastável | Parcial | `ActionPlanGantt` barras mensais sem drag | 4 |
+| G17 | Gantt arrastável | Igual* | `ActionPlanGantt` drag/resize mensal + ano | — / 9 |
 | G18 | FCA 5 Porquês | Extra | Manter (D2) | — |
-| G19 | Aprovação metas inline + lote | Parcial | Lote+botão; sem inline | 5 |
-| G20 | Aprovação previsões | Parcial | `/aprovacoes/previsoes` | 5 |
+| G19 | Aprovação metas inline + lote | Igual* | `InlineGoalApproveCell` + lote | — / 9 |
+| G20 | Aprovação previsões | Igual* | `/aprovacoes/previsoes` Motivo/Solicitação/Status | — / 9 |
 | G21 | Multigráficos + DnD | Parcial | Abas/slots por form; sem DnD | 6 |
 | G22 | Agenda mini-calendário + hoje | Parcial | Dia/semana/mês | 6 |
 | G23 | Tarefas filtros/agrupamentos | Parcial | `/tarefas` | 6 |
@@ -55,8 +55,8 @@ Espelho Obsidian: `Projetos/Gestiona/Fase-0-Matriz-Paridade.md`.
 
 | Status | Qtd |
 | --- | --- |
-| Igual / Igual* | 12 |
-| Parcial | 12 |
+| Igual / Igual* | 16 |
+| Parcial | 8 |
 | Ausente | 2 |
 | Fora | 5 |
 | Extra | 3 |

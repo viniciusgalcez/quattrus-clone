@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { periodLabel } from "@/lib/kpi";
 import { exportableOwnerIds } from "@/lib/hierarchy";
 import { EmptyState } from "@/components/EmptyState";
-import { ApproveGoalButton } from "@/components/ApproveGoalButton";
+import { InlineGoalApproveCell } from "@/components/InlineGoalApproveCell";
 import { ApproveAllGoalsButton } from "@/components/ApproveAllGoalsButton";
 import { assertPageModule } from "@/lib/module-access";
 
@@ -32,17 +32,21 @@ export default async function AprovacoesPage() {
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-        <h1 className="page-title">Aprovação de metas</h1>
-        <p className="page-subtitle">
-          Metas definidas pela sua equipe que ainda precisam da sua aprovação.
-        </p>
+          <h1 className="page-title">Aprovação de metas</h1>
+          <p className="page-subtitle">
+            Clique no campo meta para ajustar o valor e aprovar, ou use o lote no cabeçalho.
+          </p>
         </div>
         <ApproveAllGoalsButton count={pending.length} />
       </div>
 
       <nav className="flex gap-2 border-b border-[var(--color-border)]" aria-label="Tipos de aprovação">
-        <a className="btn btn-primary" href="/aprovacoes">Metas</a>
-        <a className="btn btn-ghost" href="/aprovacoes/previsoes">Previsões</a>
+        <a className="btn btn-primary" href="/aprovacoes">
+          Metas
+        </a>
+        <a className="btn btn-ghost" href="/aprovacoes/previsoes">
+          Previsões
+        </a>
       </nav>
 
       <div className="card overflow-hidden">
@@ -54,18 +58,15 @@ export default async function AprovacoesPage() {
           />
         ) : (
           <div className="table-scroll">
-            <table className="table-modern min-w-[680px]">
+            <table className="table-modern min-w-[720px]">
               <caption className="sr-only">Metas aguardando aprovação.</caption>
               <thead>
                 <tr>
                   <th scope="col">Item</th>
                   <th scope="col">Responsável</th>
                   <th scope="col">Período</th>
-                  <th scope="col" className="num">
-                    Meta
-                  </th>
                   <th scope="col" className="text-right">
-                    Ação
+                    Meta
                   </th>
                 </tr>
               </thead>
@@ -75,11 +76,12 @@ export default async function AprovacoesPage() {
                     <th scope="row">{m.kpi.name}</th>
                     <td>{m.kpi.owner.name}</td>
                     <td>{periodLabel(m.period)}</td>
-                    <td className="num">
-                      {m.goal} {m.kpi.metricUnit}
-                    </td>
                     <td className="text-right">
-                      <ApproveGoalButton measurementId={m.id} />
+                      <InlineGoalApproveCell
+                        measurementId={m.id}
+                        goal={m.goal}
+                        metricUnit={m.kpi.metricUnit}
+                      />
                     </td>
                   </tr>
                 ))}

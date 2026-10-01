@@ -840,4 +840,21 @@
   @media (prefers-reduced-motion: reduce) {
     .shell-nav-link, .shell-header-action { transition: none; }
   }
+
+  @media print {
+    .shell-sidebar,
+    .shell-header,
+    .print\:hidden,
+    nav[aria-label],
+    form:not(.print-keep) {
+      display: none !important;
+    }
+    .print-action-plan {
+      max-width: none !important;
+    }
+    .card {
+      break-inside: avoid;
+      box-shadow: none !important;
+    }
+  }
 }

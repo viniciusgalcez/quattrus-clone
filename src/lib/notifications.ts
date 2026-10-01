@@ -4,11 +4,11 @@ import { getManagerIds } from "@/lib/hierarchy";
 export type NotificationGroup = "PENDENCIAS" | "ATUALIZACOES";
 
 export const NOTIFICATION_GROUP_LABEL: Record<NotificationGroup, string> = {
-  PENDENCIAS: "Ações pendentes",
+  PENDENCIAS: "Pendentes",
   ATUALIZACOES: "Atualizações",
 };
 
-const PENDING_NOTIFICATION_TYPES = new Set(["GOAL_PENDING", "FORECAST_PENDING"]);
+const PENDING_NOTIFICATION_TYPES = new Set(["GOAL_PENDING", "FORECAST_PENDING", "STEP_OVERDUE"]);
 
 export type GroupableNotification = {
   type: string;

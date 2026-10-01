@@ -52,6 +52,67 @@ export async function approveGoal(measurementId: string): Promise<ActionResult> 
   }
 }
 
+/**
+ * Quattrus-style inline approval: manager may tweak the proposed goal in the
+ * cell and approve in one step. Empty/invalid goal keeps the existing value
+ * and only flips the approval status (same as approveGoal).
+ */
+export async function approveGoalWithValue(measurementId: string, goalRaw: string): Promise<ActionResult> {
+  try {
+    const user = await requireUser("approvals");
+    const measurement = await prisma.measurement.findUnique({
+      where: { id: measurementId },
+      include: { kpi: { select: { ownerId: true } } },
+    });
+    if (!measurement) throw new Error("Medição não encontrada.");
+    if (measurement.kpi.ownerId === user.id) {
+      throw new Error("Você não pode aprovar sua própria meta.");
+    }
+    if (!(await canView(user.id, user.role, measurement.kpi.ownerId))) {
+      throw new Error("Você não tem permissão para aprovar esta meta.");
+    }
+
+    const trimmed = goalRaw.trim().replace(",", ".");
+    let nextGoal = measurement.goal;
+    if (trimmed !== "") {
+      const parsed = Number(trimmed);
+      if (!Number.isFinite(parsed)) throw new Error("Informe um valor numérico válido para a meta.");
+      nextGoal = parsed;
+    }
+
+    await prisma.measurement.update({
+      where: { id: measurementId },
+      data: {
+        goal: nextGoal,
+        goalApprovalStatus: "APROVADA",
+        goalApprovedById: user.id,
+        goalApprovedAt: new Date(),
+      },
+    });
+
+    await recordAuditLog({
+      userId: user.id,
+      action: "STATUS_CHANGE",
+      entity: "Measurement",
+      entityId: measurementId,
+      details: {
+        field: "goalApprovalStatus",
+        value: "APROVADA",
+        goal: nextGoal,
+        previousGoal: measurement.goal,
+        ownerId: measurement.kpi.ownerId,
+        via: "inline",
+      },
+    });
+
+    revalidatePath("/aprovacoes");
+    revalidatePath("/metas");
+    return { ok: true };
+  } catch (error) {
+    return handleActionError(error);
+  }
+}
+
 /** Approves every pending team goal currently visible to the acting manager. */
 export async function approveAllPendingGoals(): Promise<ActionResult> {
   try {

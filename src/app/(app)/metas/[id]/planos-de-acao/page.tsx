@@ -7,6 +7,7 @@ import { assertPageModule } from "@/lib/module-access";
 import { periodLabel } from "@/lib/kpi";
 import { canView } from "@/lib/hierarchy";
 import { EmptyState } from "@/components/EmptyState";
+import { isStepOverdue } from "@/lib/action-plan-gantt";
 
 const STATUS_LABEL: Record<string, string> = {
   ABERTO: "Aberto",
@@ -21,14 +22,14 @@ const STATUS_BADGE_CLASS: Record<string, string> = {
 export default async function KpiActionPlansPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  // Plano de ação (FCA) lives under the "tasks" module in the profile matrix,
-  // same as /fca/[measurementId] — not "measurements", which only covers the
-  // item/measurement views themselves.
   assertPageModule(session.user, "tasks");
 
   const { id } = await params;
 
-  const kpi = await prisma.kpi.findUnique({ where: { id }, select: { id: true, name: true, ownerId: true, archivedAt: true } });
+  const kpi = await prisma.kpi.findUnique({
+    where: { id },
+    select: { id: true, name: true, ownerId: true, archivedAt: true },
+  });
   if (!kpi) notFound();
 
   const allowed = await canView(session.user.id, session.user.role, kpi.ownerId);
@@ -37,7 +38,10 @@ export default async function KpiActionPlansPage({ params }: { params: Promise<{
 
   const plans = await prisma.actionPlan.findMany({
     where: { kpiId: kpi.id },
-    include: { measurement: { select: { period: true } } },
+    include: {
+      measurement: { select: { period: true } },
+      steps: { select: { status: true, dueDate: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
 
@@ -51,7 +55,9 @@ export default async function KpiActionPlansPage({ params }: { params: Promise<{
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" /> {kpi.name}
         </Link>
         <h1 className="page-title">Planos de ação — {kpi.name}</h1>
-        <p className="page-subtitle">Todo FCA aberto ou concluído registrado para este indicador.</p>
+        <p className="page-subtitle">
+          FCA (causa-raiz) e etapas/Gantt do mesmo plano. Abra um período para editar o Gantt arrastável.
+        </p>
       </div>
 
       <div className="card overflow-hidden">
@@ -69,27 +75,47 @@ export default async function KpiActionPlansPage({ params }: { params: Promise<{
                 <tr>
                   <th scope="col">Período</th>
                   <th scope="col">Fato</th>
+                  <th scope="col" className="num">
+                    Etapas
+                  </th>
+                  <th scope="col" className="num">
+                    Atrasadas
+                  </th>
                   <th scope="col" className="text-right">
                     Status
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {plans.map((plan) => (
-                  <tr key={plan.id}>
-                    <th scope="row">
-                      <Link href={`/fca/${plan.measurementId}`} className="text-[var(--color-brand-700)] hover:underline">
-                        {periodLabel(plan.measurement.period)}
-                      </Link>
-                    </th>
-                    <td className="max-w-[420px] truncate" title={plan.fact}>
-                      {plan.fact}
-                    </td>
-                    <td className="text-right">
-                      <span className={STATUS_BADGE_CLASS[plan.status]}>{STATUS_LABEL[plan.status]}</span>
-                    </td>
-                  </tr>
-                ))}
+                {plans.map((plan) => {
+                  const overdueCount = plan.steps.filter((step) => isStepOverdue(step)).length;
+                  return (
+                    <tr key={plan.id}>
+                      <th scope="row">
+                        <Link
+                          href={`/fca/${plan.measurementId}`}
+                          className="text-[var(--color-brand-700)] hover:underline"
+                        >
+                          {periodLabel(plan.measurement.period)}
+                        </Link>
+                      </th>
+                      <td className="max-w-[420px] truncate" title={plan.fact}>
+                        {plan.fact}
+                      </td>
+                      <td className="num">{plan.steps.length}</td>
+                      <td className="num">
+                        {overdueCount > 0 ? (
+                          <span className="badge badge-vermelho">{overdueCount}</span>
+                        ) : (
+                          "0"
+                        )}
+                      </td>
+                      <td className="text-right">
+                        <span className={STATUS_BADGE_CLASS[plan.status]}>{STATUS_LABEL[plan.status]}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
